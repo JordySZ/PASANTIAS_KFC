@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import "package:login_app/scrum user/scrum_user.dart";
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -26,24 +27,27 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = true);
 
       try {
-        final response = await http.post(
-          Uri.parse('http://192.168.100.17:5000/login'), // ⚠️ Cambia IP por la de tu PC
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'email': _userController.text.trim(),
-            'contraseña': _passwordController.text,
-          }),
-        );
+     final String baseUrl = 'http://localhost:3000';  // Cambia si tu backend usa otro puerto o IP
+final response = await http.post(
+  Uri.parse('$baseUrl/usuarios/login'),
+  headers: {'Content-Type': 'application/json'},
+  body: jsonEncode({
+    'email': _userController.text.trim(),
+    'contraseña': _passwordController.text,
+  }),
+);
+
 
         setState(() => _isLoading = false);
 
         if (response.statusCode == 200) {
+          // Aquí navegas a la siguiente pantalla (UsuariosScreen)
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => UsuariosScreen()),
           );
         } else {
-          final error = jsonDecode(response.body)['msg'];
+          final error = jsonDecode(response.body)['msg'] ?? 'Error desconocido';
           _showMessage(error);
         }
       } catch (e) {
@@ -59,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _showMessage('Por favor ingresa tu usuario para recuperar la contraseña.');
       return;
     }
-    _showMessage('Se ha enviado un enlace de recuperación al correo asociado.');
+    _showMessage('Se ha enviado un enlace de recuperación al correo asociado.', isError: false);
   }
 
   void _showMessage(String message, {bool isError = true}) {
@@ -184,15 +188,4 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Bienvenido a la app'),
-      ),
-    );
-  }
-}
+// Placeholder para la pantalla UsuariosScreen, cámbialo por la tuya real
