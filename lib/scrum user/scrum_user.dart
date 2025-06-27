@@ -166,6 +166,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     );
   }
 
+  // Formulario para agregar nuevo usuario con iconos
   void _mostrarFormularioAgregarUsuario() {
     final nombreController = TextEditingController();
     final apellidoController = TextEditingController();
@@ -201,11 +202,30 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                       children: [
                         const Text('Agregar Usuario', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 16),
-                        TextField(controller: nombreController, decoration: const InputDecoration(labelText: 'Nombre')),
+                        TextField(
+                          controller: nombreController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nombre',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                        ),
                         const SizedBox(height: 10),
-                        TextField(controller: apellidoController, decoration: const InputDecoration(labelText: 'Apellido')),
+                        TextField(
+                          controller: apellidoController,
+                          decoration: const InputDecoration(
+                            labelText: 'Apellido',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                        ),
                         const SizedBox(height: 10),
-                        TextField(controller: correoController, decoration: const InputDecoration(labelText: 'Correo'), keyboardType: TextInputType.emailAddress),
+                        TextField(
+                          controller: correoController,
+                          decoration: const InputDecoration(
+                            labelText: 'Correo',
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: contrasenaController,
@@ -213,6 +233,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           autofillHints: const [AutofillHints.newPassword],
                           decoration: InputDecoration(
                             labelText: 'Contraseña',
+                            prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
                               icon: Icon(verContrasena ? Icons.visibility : Icons.visibility_off),
                               onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
@@ -226,6 +247,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           autofillHints: const [AutofillHints.newPassword],
                           decoration: InputDecoration(
                             labelText: 'Confirmar contraseña',
+                            prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(verConfirmacion ? Icons.visibility : Icons.visibility_off),
                               onPressed: () => setStateDialog(() => verConfirmacion = !verConfirmacion),
@@ -235,21 +257,30 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: rolSeleccionado,
-                          decoration: const InputDecoration(labelText: 'Rol'),
+                          decoration: const InputDecoration(
+                            labelText: 'Rol',
+                            prefixIcon: Icon(Icons.badge),
+                          ),
                           items: roles.map((rol) => DropdownMenuItem(value: rol, child: Text(rol))).toList(),
                           onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: ciudadSeleccionada,
-                          decoration: const InputDecoration(labelText: 'Ciudad'),
+                          decoration: const InputDecoration(
+                            labelText: 'Ciudad',
+                            prefixIcon: Icon(Icons.location_city),
+                          ),
                           items: ciudades.map((ciudad) => DropdownMenuItem(value: ciudad, child: Text(ciudad))).toList(),
                           onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: areaSeleccionada,
-                          decoration: const InputDecoration(labelText: 'Área'),
+                          decoration: const InputDecoration(
+                            labelText: 'Área',
+                            prefixIcon: Icon(Icons.work),
+                          ),
                           items: areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
                           onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
                         ),
@@ -331,6 +362,185 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     );
   }
 
+  // Formulario para actualizar usuario con iconos
+  void _mostrarFormularioActualizarUsuario(dynamic usuario) {
+    final nombreController = TextEditingController(text: usuario['nombre']);
+    final apellidoController = TextEditingController(text: usuario['apellido']);
+    final correoController = TextEditingController(text: usuario['correo']);
+    final contrasenaController = TextEditingController();
+
+    String? rolSeleccionado = usuario['rol'];
+    String? ciudadSeleccionada = usuario['ciudad'];
+    String? areaSeleccionada = usuario['area'];
+
+    final roles = ['Gerencia', 'Usuario', 'Supervisor'];
+    final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
+    final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
+
+    bool verContrasena = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Actualizar Usuario', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: nombreController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nombre',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: apellidoController,
+                          decoration: const InputDecoration(
+                            labelText: 'Apellido',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: correoController,
+                          decoration: const InputDecoration(
+                            labelText: 'Correo',
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: contrasenaController,
+                          obscureText: !verContrasena,
+                          autofillHints: const [AutofillHints.newPassword],
+                          decoration: InputDecoration(
+                            labelText: 'Nueva Contraseña (opcional)',
+                            prefixIcon: const Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: Icon(verContrasena ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          value: rolSeleccionado,
+                          decoration: const InputDecoration(
+                            labelText: 'Rol',
+                            prefixIcon: Icon(Icons.badge),
+                          ),
+                          items: roles.map((rol) => DropdownMenuItem(value: rol, child: Text(rol))).toList(),
+                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          value: ciudadSeleccionada,
+                          decoration: const InputDecoration(
+                            labelText: 'Ciudad',
+                            prefixIcon: Icon(Icons.location_city),
+                          ),
+                          items: ciudades.map((ciudad) => DropdownMenuItem(value: ciudad, child: Text(ciudad))).toList(),
+                          onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          value: areaSeleccionada,
+                          decoration: const InputDecoration(
+                            labelText: 'Área',
+                            prefixIcon: Icon(Icons.work),
+                          ),
+                          items: areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
+                          onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.save),
+                              label: const Text('Actualizar'),
+                              onPressed: () async {
+                                final nombre = nombreController.text.trim();
+                                final apellido = apellidoController.text.trim();
+                                final correo = correoController.text.trim();
+                                final contrasena = contrasenaController.text.trim();
+
+                                if ([nombre, apellido, correo].any((e) => e.isEmpty) ||
+                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa todos los campos')));
+                                  return;
+                                }
+
+                                final emailValido = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(correo);
+                                if (!emailValido) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Correo inválido')));
+                                  return;
+                                }
+
+                                Map<String, dynamic> body = {
+                                  'nombre': nombre,
+                                  'apellido': apellido,
+                                  'correo': correo,
+                                  'rol': rolSeleccionado,
+                                  'ciudad': ciudadSeleccionada,
+                                  'area': areaSeleccionada,
+                                };
+                                if (contrasena.isNotEmpty) {
+                                  body['contraseña'] = contrasena;
+                                }
+
+                                final url = Uri.parse('$baseUrl/usuarios/${usuario["_id"]}');
+                                final response = await http.put(
+                                  url,
+                                  headers: {'Content-Type': 'application/json'},
+                                  body: jsonEncode(body),
+                                );
+
+                                if (response.statusCode == 200) {
+                                  Navigator.pop(context);
+                                  await fetchUsuarios();
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario actualizado')));
+                                } else {
+                                  String mensaje = 'Error al actualizar';
+                                  try {
+                                    final jsonResp = jsonDecode(response.body);
+                                    mensaje = jsonResp['mensaje'] ?? jsonResp['error'] ?? mensaje;
+                                  } catch (_) {}
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _confirmarEliminacion(String id) {
     showDialog(
       context: context,
@@ -379,7 +589,21 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       ),
       title: Text('$nombre $apellido'),
       subtitle: Text(correo),
-      trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _confirmarEliminacion(id)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.green),
+            tooltip: 'Actualizar usuario',
+            onPressed: () => _mostrarFormularioActualizarUsuario(usuario),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            tooltip: 'Eliminar usuario',
+            onPressed: () => _confirmarEliminacion(id),
+          ),
+        ],
+      ),
     );
   }
 
