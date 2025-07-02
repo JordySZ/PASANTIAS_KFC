@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import "package:login_app/scrum user/scrum_user.dart";
-
+import 'package:login_app/gerente/gerente.dart';
+import 'package:login_app/user/user.dart';
 class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -23,39 +24,56 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
 
-      try {
-     final String baseUrl = 'http://localhost:3000';  // Cambia si tu backend usa otro puerto o IP
-final response = await http.post(
-  Uri.parse('$baseUrl/usuarios/login'),
-  headers: {'Content-Type': 'application/json'},
-  body: jsonEncode({
-    'email': _userController.text.trim(),
-    'contraseña': _passwordController.text,
-  }),
-);
+    try {
+      final String baseUrl = 'http://localhost:3000';  // Cambiar a IP real si pruebas en físico
+      final response = await http.post(
+        Uri.parse('$baseUrl/usuarios/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': _userController.text.trim(),
+          'contraseña': _passwordController.text,
+        }),
+      );
 
+      setState(() => _isLoading = false);
 
-        setState(() => _isLoading = false);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rol = data['usuario']['rol'];
 
-        if (response.statusCode == 200) {
-          // Aquí navegas a la siguiente pantalla (UsuariosScreen)
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => UsuariosScreen()),
-          );
-        } else {
-          final error = jsonDecode(response.body)['msg'] ?? 'Error desconocido';
-          _showMessage(error);
+        Widget destino;
+        switch (rol) {
+          case 'Gerencia':
+            destino = GerenciaScreen();
+            break;
+          case 'Usuario':
+            destino = User();
+            break;
+          case 'Supervisor':
+            destino = UsuariosScreen();
+            break;
+          default:
+            _showMessage('Rol desconocido');
+            return;
         }
-      } catch (e) {
-        setState(() => _isLoading = false);
-        _showMessage('Error de conexión con el servidor');
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => destino),
+        );
+      } else {
+        final error = jsonDecode(response.body)['msg'] ?? 'Error desconocido';
+        _showMessage(error);
       }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showMessage('Error de conexión con el servidor');
     }
   }
+}
 
   Future<void> _forgotPassword() async {
     final user = _userController.text.trim();
@@ -188,4 +206,3 @@ final response = await http.post(
   }
 }
 
-// Placeholder para la pantalla UsuariosScreen, cámbialo por la tuya real
