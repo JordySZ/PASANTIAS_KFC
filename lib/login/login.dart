@@ -4,6 +4,7 @@ import 'dart:convert';
 import "package:login_app/scrum user/scrum_user.dart";
 import 'package:login_app/gerente/gerente.dart';
 import 'package:login_app/user/user.dart';
+import 'package:login_app/user/home_page.dart';
 class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
             destino = GerenciaScreen();
             break;
           case 'Usuario':
-            destino = User();
+            destino = DashboardPage();
             break;
           case 'Supervisor':
             destino = UsuariosScreen();
