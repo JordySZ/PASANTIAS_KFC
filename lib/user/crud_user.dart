@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:login_app/user/custom_drawer.dart';
 import 'package:login_app/user/home_page.dart';
+import 'package:login_app/user/procesos/procesos.dart';
 import 'package:login_app/user/user.dart';
 class UsuariosScreen extends StatefulWidget {
   @override
@@ -620,7 +621,7 @@ return Scaffold(
     ],
   ),
 drawer: CustomDrawer(
-  selectedIndex: 2,
+  selectedIndex: 1,
   onItemTap: (index) {
     Navigator.pop(context); // Cierra el drawer
     if (index == 0) {
@@ -630,7 +631,13 @@ drawer: CustomDrawer(
       );
     } else if (index == 1) {
       // Ya estás en UsuariosScreen, no hace falta redirigir
-    } else if (index == 4) {
+
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ProcesosRud()),
+      );
+    } else if (index == 3) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => TableroScreen()),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/user/procesos/procesos.dart';
 import 'dart:math';
 import 'package:login_app/user/user.dart';
 import 'package:login_app/user/crud_user.dart';
@@ -54,20 +55,25 @@ class _DashboardPageState extends State<DashboardPage> {
         setState(() => _selectedIndex = 0);
         break;
       case 1:
-      
-        break;
-         case 2:
-        Navigator.push(
+         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => UsuariosScreen()),
+        ); break;
+         case 2:
+         Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProcesosRud()),
         );
+          break;
          case 3:
-        break;
-      case 4:
-        Navigator.push(
+
+           Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => TableroScreen()),
         );
+        break;
+      case 4:
+      
         break;
       default:
         break;
@@ -93,8 +99,6 @@ class _DashboardPageState extends State<DashboardPage> {
     switch (index) {
       case 0:
         return 'Inicio';
-      case 1:
-        return 'Crear nuevas tablas';
       case 2:
         return 'Tabla';
       case 3:

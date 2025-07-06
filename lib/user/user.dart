@@ -1,7 +1,13 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:flutter/material.dart';
-import 'package:login_app/user/cronogrma.dart';
+import 'package:flutter/services.dart';
+import 'package:login_app/user/cronograma.dart';
+import 'package:login_app/user/panel/panel_graficas.dart';
+import 'package:login_app/user/tabla/home_screen.dart';
+
+enum EstadoTarjeta { hecho, enProceso, porHacer }
+
 class Tarjeta {
   String titulo;
   String miembro;
@@ -9,8 +15,7 @@ class Tarjeta {
   String tiempo;
   DateTime? fechaInicio;
   DateTime? fechaVencimiento;
-  String recordatorio;
-  bool completado; // Nuevo campo para estado completado
+  EstadoTarjeta estado; // Nuevo campo para el estado
 
   Tarjeta({
     required this.titulo,
@@ -19,8 +24,7 @@ class Tarjeta {
     this.tiempo = '',
     this.fechaInicio,
     this.fechaVencimiento,
-    this.recordatorio = '',
-    this.completado = false,
+    this.estado = EstadoTarjeta.porHacer, // Valor por defecto
   });
 }
 
@@ -80,9 +84,9 @@ class _TableroScreenState extends State<TableroScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF003C6C),
-       appBar: AppBar(
+      appBar: AppBar(
         title: const Text('Mi Tablero Trello'),
-        backgroundColor: Colors.black87,
+        backgroundColor: const Color.fromARGB(221, 62, 60, 60),
         actions: [
           PopupMenuButton<String>(
             icon: Icon(Icons.menu),
@@ -90,24 +94,27 @@ class _TableroScreenState extends State<TableroScreen> {
               if (value == 'cronograma') {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => MyApp()),
+                  MaterialPageRoute(builder: (context) => TimelineScreen()),
+                );
+              } else if (value == 'panel') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PanelTrello()),
+                );
+              } else if (value == 'tablas') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => KanbanTaskManager()),
                 );
               }
-              // Aquí puedes agregar navegación para 'tablas' y 'panel' cuando lo necesites
             },
             itemBuilder: (BuildContext context) => [
               PopupMenuItem<String>(
                 value: 'cronograma',
                 child: Text('Cronograma'),
               ),
-              PopupMenuItem<String>(
-                value: 'tablas',
-                child: Text('Tablas'),
-              ),
-              PopupMenuItem<String>(
-                value: 'panel',
-                child: Text('Panel'),
-              ),
+              PopupMenuItem<String>(value: 'tablas', child: Text('Tablas')),
+              PopupMenuItem<String>(value: 'panel', child: Text('Panel')),
             ],
           ),
         ],
@@ -130,15 +137,20 @@ class _TableroScreenState extends State<TableroScreen> {
                     indexLista: i,
                     titulo: listas[i],
                     tarjetas: tarjetasPorLista[i],
-                    onTituloEditado: (nuevoTitulo) => editarTituloLista(i, nuevoTitulo),
+                    onTituloEditado: (nuevoTitulo) =>
+                        editarTituloLista(i, nuevoTitulo),
                     onAgregarTarjeta: (tarjeta) => agregarTarjeta(i, tarjeta),
                     agregandoTarjeta: indiceListaEditandoTarjeta == i,
                     mostrarCampoNuevaTarjeta: () => mostrarCampoNuevaTarjeta(i),
                     keyAgregarTarjeta: keysAgregarTarjeta[i],
-                    onToggleCompletado: (indexTarjeta) {
+                    onEstadoChanged: (indexTarjeta, newEstado) {
                       setState(() {
-                        final tarjeta = tarjetasPorLista[i][indexTarjeta];
-                        tarjeta.completado = !tarjeta.completado;
+                        tarjetasPorLista[i][indexTarjeta].estado = newEstado;
+                      });
+                    },
+                    onTarjetaActualizada: (indexLista, indexTarjeta, tarjetaActualizada) {
+                      setState(() {
+                        tarjetasPorLista[indexLista][indexTarjeta] = tarjetaActualizada;
                       });
                     },
                   ),
@@ -161,7 +173,8 @@ class ListaTrello extends StatefulWidget {
   final bool agregandoTarjeta;
   final VoidCallback mostrarCampoNuevaTarjeta;
   final GlobalKey keyAgregarTarjeta;
-  final Function(int indexTarjeta) onToggleCompletado;
+  final Function(int indexTarjeta, EstadoTarjeta newEstado) onEstadoChanged;
+  final Function(int indexLista, int indexTarjeta, Tarjeta tarjetaActualizada) onTarjetaActualizada;
 
   const ListaTrello({
     super.key,
@@ -173,7 +186,8 @@ class ListaTrello extends StatefulWidget {
     required this.agregandoTarjeta,
     required this.mostrarCampoNuevaTarjeta,
     required this.keyAgregarTarjeta,
-    required this.onToggleCompletado,
+    required this.onEstadoChanged,
+    required this.onTarjetaActualizada,
   });
 
   @override
@@ -182,26 +196,44 @@ class ListaTrello extends StatefulWidget {
 
 class _ListaTrelloState extends State<ListaTrello> {
   Set<int> tarjetasEnHover = {};
-  late bool editandoTitulo;
-  late TextEditingController _controllerTitulo;
-  late FocusNode _focusNodeTitulo;
+  late bool editandoTituloLista;
+  late TextEditingController _controllerTituloLista;
+  late FocusNode _focusNodeTituloLista;
   final TextEditingController _controllerNuevaTarjeta = TextEditingController();
   final FocusNode _focusNodeNuevaTarjeta = FocusNode();
 
   String formatearRangoFechas(DateTime inicio, DateTime fin) {
     String formatearFecha(DateTime fecha) {
-      final meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      final meses = [
+        'ene',
+        'feb',
+        'mar',
+        'abr',
+        'may',
+        'jun',
+        'jul',
+        'ago',
+        'sep',
+        'oct',
+        'nov',
+        'dic',
+      ];
       return '${fecha.day} ${meses[fecha.month - 1]}';
     }
 
     return '${formatearFecha(inicio)} - ${formatearFecha(fin)}';
   }
 
-  Color obtenerColorFecha(DateTime fechaVencimiento, bool completado) {
-    if (completado) return Colors.green; // Verde si completado
+  Color obtenerColorFecha(DateTime fechaVencimiento, EstadoTarjeta estado) {
+    if (estado == EstadoTarjeta.hecho) return Colors.green;
     final hoy = DateTime.now();
-    final venc = DateTime(fechaVencimiento.year, fechaVencimiento.month, fechaVencimiento.day);
-    final diferencia = venc.difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+    final venc = DateTime(
+      fechaVencimiento.year,
+      fechaVencimiento.month,
+      fechaVencimiento.day,
+    );
+    final diferencia =
+        venc.difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
     if (diferencia < 0) return Colors.red;
     if (diferencia == 1 || diferencia == 0) return Colors.amber;
     return Colors.white70;
@@ -210,40 +242,43 @@ class _ListaTrelloState extends State<ListaTrello> {
   @override
   void initState() {
     super.initState();
-    editandoTitulo = false;
-    _controllerTitulo = TextEditingController(text: widget.titulo);
-    _focusNodeTitulo = FocusNode();
-    _focusNodeTitulo.addListener(() {
-      if (!_focusNodeTitulo.hasFocus && editandoTitulo) {
-        guardarTitulo();
+    editandoTituloLista = false;
+    _controllerTituloLista = TextEditingController(text: widget.titulo);
+    _focusNodeTituloLista = FocusNode();
+    _focusNodeTituloLista.addListener(() {
+      if (!_focusNodeTituloLista.hasFocus && editandoTituloLista) {
+        guardarTituloLista();
       }
     });
   }
 
   @override
   void dispose() {
-    _controllerTitulo.dispose();
-    _focusNodeTitulo.dispose();
+    _controllerTituloLista.dispose();
+    _focusNodeTituloLista.dispose();
     _controllerNuevaTarjeta.dispose();
     _focusNodeNuevaTarjeta.dispose();
     super.dispose();
   }
 
-  void guardarTitulo() {
+  void guardarTituloLista() {
     setState(() {
-      editandoTitulo = false;
-      widget.onTituloEditado(_controllerTitulo.text.trim());
-      _focusNodeTitulo.unfocus();
+      editandoTituloLista = false;
+      widget.onTituloEditado(_controllerTituloLista.text.trim());
+      _focusNodeTituloLista.unfocus();
     });
   }
 
-  void activarEdicionTitulo() {
+  void activarEdicionTituloLista() {
     setState(() {
-      editandoTitulo = true;
+      editandoTituloLista = true;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNodeTitulo.requestFocus();
-      _controllerTitulo.selection = TextSelection(baseOffset: 0, extentOffset: _controllerTitulo.text.length);
+      _focusNodeTituloLista.requestFocus();
+      _controllerTituloLista.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _controllerTituloLista.text.length,
+      );
     });
   }
 
@@ -257,70 +292,123 @@ class _ListaTrelloState extends State<ListaTrello> {
 
   void mostrarModalTarjeta(int indexTarjeta) {
     Tarjeta tarjeta = widget.tarjetas[indexTarjeta];
+    // Controladores locales para el modal
+    final tituloController = TextEditingController(text: tarjeta.titulo); // ¡Nuevo controlador para el título!
     final miembroController = TextEditingController(text: tarjeta.miembro);
     final tiempoController = TextEditingController(text: tarjeta.tiempo);
-    final recordatorioController = TextEditingController(text: tarjeta.recordatorio);
     DateTime? fechaInicio = tarjeta.fechaInicio;
     DateTime? fechaVencimiento = tarjeta.fechaVencimiento;
+    EstadoTarjeta estadoActual = tarjeta.estado;
+
     final List<Widget> mensajesAlert = [];
 
     if (fechaVencimiento != null) {
       final hoy = DateTime.now();
-      final venc = DateTime(fechaVencimiento.year, fechaVencimiento.month, fechaVencimiento.day);
-      final diff = venc.difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
-      if (diff < 0) {
-        mensajesAlert.add(const Text("⚠️ Plazo vencido", style: TextStyle(color: Colors.red)));
-      } else if (diff == 1 || diff == 0) {
-        mensajesAlert.add(const Text("⚠️ Vence pronto", style: TextStyle(color: Colors.amber)));
+      final venc = DateTime(
+        fechaVencimiento.year,
+        fechaVencimiento.month,
+        fechaVencimiento.day,
+      );
+      final diff =
+          venc.difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+      if (diff < 0 && estadoActual != EstadoTarjeta.hecho) {
+        mensajesAlert.add(
+          const Text("⚠️ Plazo vencido", style: TextStyle(color: Colors.red)),
+        );
+      } else if ((diff == 1 || diff == 0) &&
+          estadoActual != EstadoTarjeta.hecho) {
+        mensajesAlert.add(
+          const Text("⚠️ Vence pronto", style: TextStyle(color: Colors.amber)),
+        );
       }
     }
 
-    if (tarjeta.completado) {
-      mensajesAlert.add(const Text("✅ Cumplido", style: TextStyle(color: Colors.green)));
+    if (estadoActual == EstadoTarjeta.hecho) {
+      mensajesAlert.add(
+        const Text("✅ Cumplido", style: TextStyle(color: Colors.green)),
+      );
     }
 
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setStateModal) {
-          return AlertDialog(
-            backgroundColor: Colors.black87,
-            title: Text(tarjeta.titulo, style: const TextStyle(color: Colors.white)),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...mensajesAlert,
-                  SizedBox(height: 8),
-                  buildTextField("👤 Miembro", miembroController),
-                  buildTextField("⏱ Tiempo estimado", tiempoController),
-                  buildTextField("🔔 Recordatorio", recordatorioController),
-                  buildDatePicker("📅 Fecha de inicio", (picked) => setStateModal(() => fechaInicio = picked), fechaInicio),
-                  buildDatePicker("⏳ Fecha de vencimiento", (picked) => setStateModal(() => fechaVencimiento = picked), fechaVencimiento),
-                ],
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return AlertDialog(
+              backgroundColor: Colors.black87,
+              // Título del modal ahora es un TextField editable
+              title: TextField(
+                controller: tituloController,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20, // Ajusta el tamaño si es necesario
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Título de la tarjeta',
+                  hintStyle: TextStyle(color: Colors.white54, fontWeight: FontWeight.normal),
+                  border: InputBorder.none, // Elimina el borde del TextField
+                  isDense: true, // Reduce el espacio vertical
+                  contentPadding: EdgeInsets.zero, // Elimina padding interno
+                ),
+                maxLines: null, // Permite múltiples líneas
+                keyboardType: TextInputType.multiline, // Habilita el teclado multilínea
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("Cancelar", style: TextStyle(color: Colors.white)),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...mensajesAlert,
+                    SizedBox(height: 8),
+                    buildTextField("👤 Miembro", miembroController),
+                    buildTiempoField("⏱ Tiempo", tiempoController),
+                    buildEstadoDropdown(estadoActual, (newValue) {
+                      setStateModal(() {
+                        estadoActual = newValue;
+                      });
+                    }),
+                    buildDatePicker(
+                      "📅 Fecha de inicio",
+                      (picked) => setStateModal(() => fechaInicio = picked),
+                      fechaInicio,
+                    ),
+                    buildDatePicker(
+                      "⏳ Fecha de vencimiento",
+                      (picked) => setStateModal(() => fechaVencimiento = picked),
+                      fechaVencimiento,
+                    ),
+                  ],
+                ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    tarjeta.miembro = miembroController.text;
-                    tarjeta.tiempo = tiempoController.text;
-                    tarjeta.recordatorio = recordatorioController.text;
-                    tarjeta.fechaInicio = fechaInicio;
-                    tarjeta.fechaVencimiento = fechaVencimiento;
-                  });
-                  Navigator.of(context).pop();
-                },
-                child: const Text("Guardar"),
-              )
-            ],
-          );
-        });
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    "Cancelar",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Crea una nueva Tarjeta con los datos actualizados
+                    Tarjeta tarjetaActualizada = Tarjeta(
+                      titulo: tituloController.text.trim(), // ¡Guarda el título editado!
+                      miembro: miembroController.text,
+                      tarea: tarjeta.tarea, // tarea no se edita en este modal
+                      tiempo: tiempoController.text,
+                      fechaInicio: fechaInicio,
+                      fechaVencimiento: fechaVencimiento,
+                      estado: estadoActual,
+                    );
+                    widget.onTarjetaActualizada(widget.indexLista, indexTarjeta, tarjetaActualizada);
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text("Guardar"),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
@@ -334,14 +422,99 @@ class _ListaTrelloState extends State<ListaTrello> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: Colors.white70),
-          enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white38)),
-          focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+          enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white38),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white),
+          ),
         ),
       ),
     );
   }
 
-  Widget buildDatePicker(String label, Function(DateTime) onDatePicked, DateTime? fechaActual) {
+  Widget buildTiempoField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(color: Colors.white),
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          labelText: "$label (horas)",
+          labelStyle: const TextStyle(color: Colors.white70),
+          enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white38),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white),
+          ),
+        ),
+      )
+      );
+    }
+
+  Widget buildEstadoDropdown(
+      EstadoTarjeta estadoActual, Function(EstadoTarjeta) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Estado:",
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          DropdownButton<EstadoTarjeta>(
+            value: estadoActual,
+            dropdownColor: Colors.black87,
+            style: const TextStyle(color: Colors.white),
+            onChanged: (EstadoTarjeta? newValue) {
+              if (newValue != null) {
+                onChanged(newValue);
+              }
+            },
+            items: <EstadoTarjeta>[
+              EstadoTarjeta.hecho,
+              EstadoTarjeta.enProceso,
+              EstadoTarjeta.porHacer
+            ].map<DropdownMenuItem<EstadoTarjeta>>((EstadoTarjeta value) {
+              String text;
+              Color color;
+              switch (value) {
+                case EstadoTarjeta.hecho:
+                  text = "Hecho";
+                  color = Colors.green;
+                  break;
+                case EstadoTarjeta.enProceso:
+                  text = "En proceso";
+                  color = Colors.amber;
+                  break;
+                case EstadoTarjeta.porHacer:
+                  text = "Por hacer";
+                  color = Colors.grey;
+                  break;
+              }
+              return DropdownMenuItem<EstadoTarjeta>(
+                value: value,
+                child: Text(
+                  text,
+                  style: TextStyle(color: color),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildDatePicker(
+    String label,
+    Function(DateTime) onDatePicked,
+    DateTime? fechaActual,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -360,10 +533,24 @@ class _ListaTrelloState extends State<ListaTrello> {
             );
             if (pickedDate != null) onDatePicked(pickedDate);
           },
-          child: const Text("Elegir", style: TextStyle(color: Colors.blueAccent)),
-        )
+          child: const Text(
+            "Elegir",
+            style: TextStyle(color: Colors.blueAccent),
+          ),
+        ),
       ],
     );
+  }
+
+  Color _getColorForEstado(EstadoTarjeta estado) {
+    switch (estado) {
+      case EstadoTarjeta.hecho:
+        return Colors.green;
+      case EstadoTarjeta.enProceso:
+        return Colors.amber;
+      case EstadoTarjeta.porHacer:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -380,110 +567,147 @@ class _ListaTrelloState extends State<ListaTrello> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          editandoTitulo
+          editandoTituloLista
               ? TextField(
-                  controller: _controllerTitulo,
-                  focusNode: _focusNodeTitulo,
+                  controller: _controllerTituloLista,
+                  focusNode: _focusNodeTituloLista,
                   autofocus: true,
-                  onSubmitted: (_) => guardarTitulo(),
+                  onSubmitted: (_) => guardarTituloLista(),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(border: InputBorder.none),
                 )
               : GestureDetector(
-                  onTap: activarEdicionTitulo,
+                  onTap: activarEdicionTituloLista,
                   child: Text(
                     widget.titulo,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
           const SizedBox(height: 10),
-         ...widget.tarjetas.asMap().entries.map((entry) {
-  final index = entry.key;
-  final tarjeta = entry.value;
-  final enHover = tarjetasEnHover.contains(index);
+          ...widget.tarjetas.asMap().entries.map((entry) {
+            final index = entry.key;
+            final tarjeta = entry.value;
+            final enHover = tarjetasEnHover.contains(index);
 
-  return MouseRegion(
-    onEnter: (_) => setState(() => tarjetasEnHover.add(index)),
-    onExit: (_) => setState(() => tarjetasEnHover.remove(index)),
-    child: GestureDetector(
-      onTap: () => mostrarModalTarjeta(index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(6),
-          border: enHover
-              ? Border.all(color: Colors.white, width: 2)
-              : Border.all(color: Colors.transparent),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-        Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: enHover || tarjeta.completado ? 24 : 0, // Mostrar círculo si está en hover o completado
-      height: 24,
-      margin: const EdgeInsets.only(right: 8, top: 2),
-      child: (enHover || tarjeta.completado)
-          ? GestureDetector(
-              onTap: () {
-                widget.onToggleCompletado(index);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white),
-                  color: tarjeta.completado ? Colors.green : Colors.transparent,
+            return MouseRegion(
+              onEnter: (_) => setState(() => tarjetasEnHover.add(index)),
+              onExit: (_) => setState(() => tarjetasEnHover.remove(index)),
+              child: GestureDetector(
+                onTap: () => mostrarModalTarjeta(index), // Abre el modal con el título editable
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(6),
+                    border: enHover
+                        ? Border.all(color: Colors.white, width: 2)
+                        : Border.all(color: Colors.transparent),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Línea de color de estado en la parte superior de la tarjeta
+                      Container(
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: _getColorForEstado(tarjeta.estado),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(6),
+                            topRight: Radius.circular(6),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Círculo interactivo que aparece al hacer hover
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: enHover ? 24 : 0,
+                                  height: 24,
+                                  margin: const EdgeInsets.only(right: 8, top: 2),
+                                  child: enHover
+                                      ? GestureDetector(
+                                          onTap: () {
+                                            EstadoTarjeta nuevoEstado;
+                                            if (tarjeta.estado == EstadoTarjeta.hecho) {
+                                              nuevoEstado = EstadoTarjeta.porHacer;
+                                            } else {
+                                              nuevoEstado = EstadoTarjeta.hecho;
+                                            }
+                                            widget.onEstadoChanged(index, nuevoEstado);
+                                          },
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: _getColorForEstado(tarjeta.estado),
+                                                width: 2,
+                                              ),
+                                              color: tarjeta.estado == EstadoTarjeta.hecho ? Colors.green : Colors.transparent,
+                                            ),
+                                            child: Center(
+                                              child: tarjeta.estado == EstadoTarjeta.hecho
+                                                  ? Icon(Icons.check, size: 16, color: Colors.white)
+                                                  : null,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                Expanded(
+                                  child: Text( // El título de la tarjeta ya no es editable aquí, solo en el modal
+                                    tarjeta.titulo,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    softWrap: true,
+                                    maxLines: null,
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (tarjeta.miembro.isNotEmpty)
+                              Text(
+                                "👤 ${tarjeta.miembro}",
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            if (tarjeta.tiempo.isNotEmpty)
+                              Text(
+                                "⏱ ${tarjeta.tiempo} horas",
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            if (tarjeta.fechaInicio != null &&
+                                tarjeta.fechaVencimiento != null)
+                              Text(
+                                "📅 ${formatearRangoFechas(tarjeta.fechaInicio!, tarjeta.fechaVencimiento!)}",
+                                style: TextStyle(
+                                  color: obtenerColorFecha(
+                                    tarjeta.fechaVencimiento!,
+                                    tarjeta.estado,
+                                  ),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: tarjeta.completado
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : null,
               ),
-            )
-          : null,
-    ),
-    Expanded(
-      child: Text(
-        tarjeta.titulo,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-        softWrap: true,
-        maxLines: null,
-        overflow: TextOverflow.visible,
-      ),
-    ),
-  ],
-),
-            if (tarjeta.miembro.isNotEmpty)
-              Text("👤 ${tarjeta.miembro}",
-                  style: const TextStyle(color: Colors.white70)),
-            if (tarjeta.tiempo.isNotEmpty)
-              Text("⏱ ${tarjeta.tiempo}",
-                  style: const TextStyle(color: Colors.white70)),
-            if (tarjeta.fechaInicio != null &&
-                tarjeta.fechaVencimiento != null)
-              Text(
-                "📅 ${formatearRangoFechas(tarjeta.fechaInicio!, tarjeta.fechaVencimiento!)}",
-                style: TextStyle(
-                  color: obtenerColorFecha(
-                      tarjeta.fechaVencimiento!, tarjeta.completado),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
-}),
-
-
+            );
+          }),
           const SizedBox(height: 5),
           widget.agregandoTarjeta
               ? Container(
@@ -513,20 +737,26 @@ class _ListaTrelloState extends State<ListaTrello> {
                         alignment: Alignment.centerRight,
                         child: OutlinedButton(
                           onPressed: agregarTarjeta,
-                          child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+                          child: const Text(
+                            'Guardar',
+                            style: TextStyle(color: Colors.white),
+                          ),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.white70),
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 )
               : TextButton.icon(
                   onPressed: widget.mostrarCampoNuevaTarjeta,
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Añadir', style: TextStyle(color: Colors.white)),
-                )
+                  label: const Text(
+                    'Añadir',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
         ],
       ),
     );
@@ -545,7 +775,9 @@ class BotonAgregarLista extends StatelessWidget {
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue[700],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
         onPressed: onAgregar,
         icon: const Icon(Icons.add),

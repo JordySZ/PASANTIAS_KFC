@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
       
       title: 'App Modular',
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(),
+      home: LoginScreen(), 
     );
   }
 }

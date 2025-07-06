@@ -12,7 +12,6 @@ class CustomDrawer extends StatelessWidget {
 
   final List<String> _titles = [
     'Inicio',
-    'Crear nuevas tablas',
     'Usarios',
     'Procesos',
     'Crear nuevo procesos',
@@ -20,7 +19,6 @@ class CustomDrawer extends StatelessWidget {
 
   final List<IconData> _icons = [
     Icons.home,
-    Icons.table_view_outlined,
     Icons.table_chart,
     Icons.settings,
     Icons.add_task,
