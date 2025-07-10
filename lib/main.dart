@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login/login.dart';  // Importa la pantalla de login
+import 'package:login_app/login/login.dart';
+import 'package:login_app/user/home_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
       
       title: 'App Modular',
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(), 
+      home: LoginScreen1(),  //LoginScreen DashboardPage
     );
   }
 }
