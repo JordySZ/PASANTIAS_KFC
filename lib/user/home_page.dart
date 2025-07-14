@@ -14,8 +14,10 @@ class Project {
   final String name;
   final String client;
   final String status;
-  final String startDate; // Las fechas se siguen guardando como String en este modelo
-  final String endDate;   // Las fechas se siguen guardando como String en este modelo
+  final String
+  startDate; // Las fechas se siguen guardando como String en este modelo
+  final String
+  endDate; // Las fechas se siguen guardando como String en este modelo
   final double progress;
 
   Project({
@@ -40,19 +42,18 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Project> _projects = [];
   bool _isLoadingProjects = true;
   String? _projectsErrorMessage;
- String _formatDate(String dateString) {
+  String _formatDate(String dateString) {
     try {
       final DateTime dateTime = DateTime.parse(dateString);
       // Formato DD/MM/YYYY
       return '${dateTime.day.toString().padLeft(2, '0')}/'
-             '${dateTime.month.toString().padLeft(2, '0')}/'
-             '${dateTime.year.toString()}';
+          '${dateTime.month.toString().padLeft(2, '0')}/'
+          '${dateTime.year.toString()}';
     } catch (e) {
       print('Error al parsear o formatear fecha: $dateString - $e');
       return 'Fecha Inválida'; // O el mensaje que prefieras para errores
     }
   }
-
 
   double completedPercent = 0.0;
   double inProgressPercent = 0.0;
@@ -71,7 +72,7 @@ class _DashboardPageState extends State<DashboardPage> {
     'Sep',
     'Oct',
     'Nov',
-    'Dic'
+    'Dic',
   ];
   final List<int> started = List.filled(12, 0);
   final List<int> closed = List.filled(12, 0);
@@ -83,7 +84,8 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     // Inicializa los datos de símbolos de fecha para español antes de usar DateFormat con locale 'es'
-    initializeDateFormatting('es', null).then((_) { //
+    initializeDateFormatting('es', null).then((_) {
+      //
       _fetchProjectsData();
     });
   }
@@ -96,14 +98,19 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final fetchedProcesses = await _apiService.getProcesses();
       setState(() {
-        _projects = fetchedProcesses.map((process) => Project(
-          name: process.name,
-          client: process.client ?? 'N/A',
-          status: process.status ?? 'Activo',
-          startDate: process.startDate.toIso8601String(),
-          endDate: process.endDate.toIso8601String(),
-          progress: process.progress ?? 0.0,
-        )).toList();
+        _projects =
+            fetchedProcesses
+                .map(
+                  (process) => Project(
+                    name: process.name,
+                    client: process.client ?? 'N/A',
+                    status: process.status ?? 'Activo',
+                    startDate: process.startDate.toIso8601String(),
+                    endDate: process.endDate.toIso8601String(),
+                    progress: process.progress ?? 0.0,
+                  ),
+                )
+                .toList();
 
         _isLoadingProjects = false;
         _calculateProjectPercentages();
@@ -131,7 +138,8 @@ class _DashboardPageState extends State<DashboardPage> {
       pendingPercent = 0.0;
       return;
     }
-    int completedCount = _projects.where((p) => p.status == 'Completado').length;
+    int completedCount =
+        _projects.where((p) => p.status == 'Completado').length;
     int inProgressCount = _projects.where((p) => p.status == 'Activo').length;
     int pendingCount = _projects.where((p) => p.status == 'Pendiente').length;
 
@@ -150,7 +158,9 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirmar Eliminación'),
-          content: Text('¿Estás seguro de que quieres eliminar el proceso "$processName"? Esta acción es **irreversible** y eliminará todos los datos asociados a este proceso (listas y tarjetas).'),
+          content: Text(
+            '¿Estás seguro de que quieres eliminar el proceso "$processName"? Esta acción es **irreversible** y eliminará todos los datos asociados a este proceso (listas y tarjetas).',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -183,20 +193,26 @@ class _DashboardPageState extends State<DashboardPage> {
         await _fetchProjectsData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Proceso "$processName" eliminado exitosamente.')),
+            SnackBar(
+              content: Text('Proceso "$processName" eliminado exitosamente.'),
+            ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar el proceso "$processName".')),
+            SnackBar(
+              content: Text('Error al eliminar el proceso "$processName".'),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión al eliminar el proceso: $e')),
+          SnackBar(
+            content: Text('Error de conexión al eliminar el proceso: $e'),
+          ),
         );
       }
     } finally {
@@ -225,13 +241,23 @@ class _DashboardPageState extends State<DashboardPage> {
         );
         break;
       case 3:
+        // Cambia aquí: redirige a TableroScreen sin processName para crear nuevo proceso/tarjeta
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => TableroScreen()),
+          MaterialPageRoute(
+            builder: (context) => TableroScreen(processName: null),
+          ),
         );
         setState(() => _selectedIndex = 0);
         break;
       case 4:
+        // También aquí: redirige a TableroScreen sin processName
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TableroScreen(processName: null),
+          ),
+        );
         break;
       case 5:
         _showLogoutDialog();
@@ -326,9 +352,11 @@ class _DashboardPageState extends State<DashboardPage> {
       case 2:
         return ProcesosRud();
       case 3:
-        return TableroScreen(processName: _projects.isNotEmpty ? _projects[0].name : 'DefaultProcess');
+        // Cambia aquí: muestra TableroScreen sin processName
+        return TableroScreen(processName: null);
       case 4:
-        return Center(child: Text('Formulario para crear nuevo proceso aquí.'));
+        // También aquí: muestra TableroScreen sin processName
+        return TableroScreen(processName: null);
       default:
         return const Center(child: Text('Página no encontrada'));
     }
@@ -356,8 +384,9 @@ class _DashboardPageState extends State<DashboardPage> {
                         onTapUp: (details) {
                           final RenderBox box =
                               context.findRenderObject() as RenderBox;
-                          final Offset localPos =
-                              box.globalToLocal(details.globalPosition);
+                          final Offset localPos = box.globalToLocal(
+                            details.globalPosition,
+                          );
                           _handleCircleTap(localPos);
                         },
                         child: CustomPaint(
@@ -372,9 +401,10 @@ class _DashboardPageState extends State<DashboardPage> {
                             child: Text(
                               '${((completedPercent + inProgressPercent + pendingPercent) * 100).round()}%',
                               style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87),
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ),
                         ),
@@ -409,8 +439,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     onTapUp: (details) {
                       final RenderBox box =
                           context.findRenderObject() as RenderBox;
-                      final Offset localPos =
-                          box.globalToLocal(details.globalPosition);
+                      final Offset localPos = box.globalToLocal(
+                        details.globalPosition,
+                      );
                       _handleBarTap(localPos);
                     },
                     child: BarChartWidget(
@@ -435,168 +466,209 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _tableContent() {
     // Define el formateador de fecha aquí, dentro de un método que se construya
     // cuando el widget se renderice (o una vez en initState si no cambia)
-   
+
     // Si quieres el nombre del mes:
     // final DateFormat formatter = DateFormat('dd MMM yyyy', 'es'); // Ejemplo: 10 jul 2025 (asegúrate de que `initializeDateFormatting('es', null)` se ha llamado)
 
-     return _isLoadingProjects
+    return _isLoadingProjects
         ? const Center(child: CircularProgressIndicator())
         : _projectsErrorMessage != null
-            ? Center(
-                child: Text(
-                  _projectsErrorMessage!,
-                  style: const TextStyle(color: Colors.red),
+        ? Center(
+          child: Text(
+            _projectsErrorMessage!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        )
+        : SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Tabla de Proyectos',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Tabla de Proyectos',
-                              style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold),
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(
+                              label: Text(
+                                'Nombre',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: const [
-                                  DataColumn(
-                                      label: Text('Nombre',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Cliente',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Estado',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Inicio',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Fin',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Progreso',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Acciones',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                  DataColumn(
-                                      label: Text('Eliminar',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold))),
-                                ],
-                                rows: _projects.map((project) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(project.name)),
-                                      DataCell(Text(project.client)),
-                                      DataCell(Text(project.status)),
-                                      // Aquí ya estás usando la función _formatDate
-                                      DataCell(Text(_formatDate(project.startDate))),
-                                      DataCell(Text(_formatDate(project.endDate))),
-                                      DataCell(
-                                        SizedBox(
-                                          width: 100,
-                                          child: LinearProgressIndicator(
-                                            value: project.progress,
-                                            backgroundColor: Colors.grey[300],
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              project.status == 'Completado'
-                                                  ? Colors.green
-                                                  : project.status == 'Activo'
-                                                      ? Colors.blue
-                                                      : Colors.red,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    TableroScreen(
-                                                        processName:
-                                                            project.name),
-                                              ),
-                                            );
-                                          },
-                                          icon: const Icon(Icons.visibility,
-                                              size: 18),
-                                          label: const Text('Ver Detalles',
-                                              style: TextStyle(fontSize: 12)),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.blue[700],
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 8),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            _confirmDeleteProcess(
-                                                context, project.name);
-                                          },
-                                          icon: const Icon(Icons.delete,
-                                              size: 18),
-                                          label: const Text('Eliminar',
-                                              style: TextStyle(fontSize: 12)),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red[700],
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 8),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
+                            DataColumn(
+                              label: Text(
+                                'Cliente',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Estado',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Inicio',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Fin',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Progreso',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Acciones',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Eliminar',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
+                          rows:
+                              _projects.map((project) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(Text(project.name)),
+                                    DataCell(Text(project.client)),
+                                    DataCell(Text(project.status)),
+                                    // Aquí ya estás usando la función _formatDate
+                                    DataCell(
+                                      Text(_formatDate(project.startDate)),
+                                    ),
+                                    DataCell(
+                                      Text(_formatDate(project.endDate)),
+                                    ),
+                                    DataCell(
+                                      SizedBox(
+                                        width: 100,
+                                        child: LinearProgressIndicator(
+                                          value: project.progress,
+                                          backgroundColor: Colors.grey[300],
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                project.status == 'Completado'
+                                                    ? Colors.green
+                                                    : project.status == 'Activo'
+                                                    ? Colors.blue
+                                                    : Colors.red,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (context) => TableroScreen(
+                                                    processName: project.name,
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.visibility,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Ver Detalles',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue[700],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          _confirmDeleteProcess(
+                                            context,
+                                            project.name,
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Eliminar',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red[700],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
+              ),
+            ],
+          ),
+        );
   }
+
   Widget _procesosContent() {
-    return Container(); 
+    return Container();
   }
+
   void _handleCircleTap(Offset localPos) {
     final center = Offset(90, 90);
     final dx = localPos.dx - center.dx;
@@ -623,6 +695,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
     setState(() => selectedCircleSegment = -1);
   }
+
   void _handleBarTap(Offset localPos) {
     const double leftPadding = 40;
     const double barWidth = 16;
@@ -637,7 +710,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
       Rect startedRect = Rect.fromLTWH(
         x,
-        chartHeight + 20 -
+        chartHeight +
+            20 -
             (maxValue == 0 ? 0 : started[i] / maxValue * chartHeight),
         barWidth,
         maxValue == 0 ? 0 : started[i] / maxValue * chartHeight,
@@ -645,7 +719,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
       Rect closedRect = Rect.fromLTWH(
         x + barWidth + barSpace,
-        chartHeight + 20 -
+        chartHeight +
+            20 -
             (maxValue == 0 ? 0 : closed[i] / maxValue * chartHeight),
         barWidth,
         maxValue == 0 ? 0 : closed[i] / maxValue * chartHeight,
@@ -671,6 +746,7 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 }
+
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
@@ -682,14 +758,12 @@ class LoginScreen extends StatelessWidget {
         backgroundColor: Colors.blue[900],
       ),
       body: const Center(
-        child: Text(
-          'Pantalla de Login',
-          style: TextStyle(fontSize: 24),
-        ),
+        child: Text('Pantalla de Login', style: TextStyle(fontSize: 24)),
       ),
     );
   }
 }
+
 class ProjectFiltersWidget extends StatefulWidget {
   const ProjectFiltersWidget({super.key});
 
@@ -722,11 +796,18 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
               DropdownButton<String>(
                 value: client,
                 isDense: true,
-                items: clients
-                    .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12))))
-                    .toList(),
+                items:
+                    clients
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => client = v!),
               ),
             ),
@@ -735,11 +816,18 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
               DropdownButton<String>(
                 value: project,
                 isDense: true,
-                items: projects
-                    .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12))))
-                    .toList(),
+                items:
+                    projects
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => project = v!),
               ),
             ),
@@ -748,11 +836,18 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
               DropdownButton<String>(
                 value: manager,
                 isDense: true,
-                items: managers
-                    .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12))))
-                    .toList(),
+                items:
+                    managers
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => manager = v!),
               ),
             ),
@@ -761,11 +856,18 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
               DropdownButton<String>(
                 value: status,
                 isDense: true,
-                items: statuses
-                    .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12))))
-                    .toList(),
+                items:
+                    statuses
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => status = v!),
               ),
             ),
@@ -777,8 +879,10 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ),
@@ -791,7 +895,10 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold, letterSpacing: 1, fontSize: 14),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                    fontSize: 14,
+                  ),
                 ),
                 onPressed: () {},
                 child: const Text('MOSTRAR PROYECTOS'),
@@ -809,16 +916,19 @@ class _ProjectFiltersWidgetState extends State<ProjectFiltersWidget> {
       child: Row(
         children: [
           SizedBox(
-              width: 120,
-              child: Text(label,
-                  style:
-                      const TextStyle(fontWeight: FontWeight.w500, fontSize: 12))),
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+            ),
+          ),
           Expanded(child: input),
           const SizedBox(width: 4),
           IconButton(
-              icon: const Icon(Icons.add, size: 18),
-              onPressed: () {},
-              splashRadius: 16),
+            icon: const Icon(Icons.add, size: 18),
+            onPressed: () {},
+            splashRadius: 16,
+          ),
         ],
       ),
     );
@@ -842,13 +952,14 @@ class CustomLegendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: isSelected
-          ? BoxDecoration(
-              border: Border.all(color: color, width: 2),
-              borderRadius: BorderRadius.circular(6),
-              color: color.withOpacity(0.15),
-            )
-          : null,
+      decoration:
+          isSelected
+              ? BoxDecoration(
+                border: Border.all(color: color, width: 2),
+                borderRadius: BorderRadius.circular(6),
+                color: color.withOpacity(0.15),
+              )
+              : null,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       margin: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -856,8 +967,10 @@ class CustomLegendItem extends StatelessWidget {
         children: [
           Container(width: 20, height: 14, color: color),
           const SizedBox(width: 8),
-          Text('$label: ${(percent * 100).round()}%',
-              style: const TextStyle(fontSize: 16)),
+          Text(
+            '$label: ${(percent * 100).round()}%',
+            style: const TextStyle(fontSize: 16),
+          ),
         ],
       ),
     );
@@ -920,40 +1033,68 @@ class BarChartPainter extends CustomPainter {
 
     final int maxValue = [started, closed].expand((e) => e).fold(0, max);
 
-    final axisPaint = Paint()
-      ..color = Colors.grey[700]!
-      ..strokeWidth = 1.0;
+    final axisPaint =
+        Paint()
+          ..color = Colors.grey[700]!
+          ..strokeWidth = 1.0;
 
     canvas.drawLine(
-        Offset(leftPadding, 20), Offset(leftPadding, chartHeight + 20), axisPaint);
-    canvas.drawLine(Offset(leftPadding, chartHeight + 20),
-        Offset(size.width - 10, chartHeight + 20), axisPaint);
+      Offset(leftPadding, 20),
+      Offset(leftPadding, chartHeight + 20),
+      axisPaint,
+    );
+    canvas.drawLine(
+      Offset(leftPadding, chartHeight + 20),
+      Offset(size.width - 10, chartHeight + 20),
+      axisPaint,
+    );
 
-    final textPainter = TextPainter(textAlign: TextAlign.right, textDirection: TextDirection.ltr);
+    final textPainter = TextPainter(
+      textAlign: TextAlign.right,
+      textDirection: TextDirection.ltr,
+    );
     for (int i = 0; i <= maxValue; i += 5) {
-      textPainter.text =
-          TextSpan(text: '$i', style: const TextStyle(color: Colors.black54, fontSize: 12));
+      textPainter.text = TextSpan(
+        text: '$i',
+        style: const TextStyle(color: Colors.black54, fontSize: 12),
+      );
       textPainter.layout();
       textPainter.paint(
-          canvas,
-          Offset(leftPadding - 8 - textPainter.width,
-              chartHeight + 20 - (i / maxValue) * chartHeight - textPainter.height / 2));
+        canvas,
+        Offset(
+          leftPadding - 8 - textPainter.width,
+          chartHeight +
+              20 -
+              (i / maxValue) * chartHeight -
+              textPainter.height / 2,
+        ),
+      );
     }
     for (int i = 0; i < months.length; i++) {
       double x = leftPadding + i * groupSpace + 12;
 
-      double startedBarHeight = maxValue == 0 ? 0 : started[i] / maxValue * chartHeight;
-      final startedRect =
-          Rect.fromLTWH(x, chartHeight + 20 - startedBarHeight, barWidth, startedBarHeight);
+      double startedBarHeight =
+          maxValue == 0 ? 0 : started[i] / maxValue * chartHeight;
+      final startedRect = Rect.fromLTWH(
+        x,
+        chartHeight + 20 - startedBarHeight,
+        barWidth,
+        startedBarHeight,
+      );
       final startedPaint = Paint()..color = Colors.orange;
       if (selectedGroup == i && selectedIsStarted == true) {
         startedPaint.color = Colors.orangeAccent;
       }
       canvas.drawRect(startedRect, startedPaint);
 
-      double closedBarHeight = maxValue == 0 ? 0 : closed[i] / maxValue * chartHeight;
+      double closedBarHeight =
+          maxValue == 0 ? 0 : closed[i] / maxValue * chartHeight;
       final closedRect = Rect.fromLTWH(
-          x + barWidth + barSpace, chartHeight + 20 - closedBarHeight, barWidth, closedBarHeight);
+        x + barWidth + barSpace,
+        chartHeight + 20 - closedBarHeight,
+        barWidth,
+        closedBarHeight,
+      );
       final closedPaint = Paint()..color = Colors.cyan[600]!;
       if (selectedGroup == i && selectedIsStarted == false) {
         closedPaint.color = Colors.cyanAccent;
@@ -962,45 +1103,66 @@ class BarChartPainter extends CustomPainter {
 
       final monthPainter = TextPainter(
         text: TextSpan(
-            text: months[i], style: const TextStyle(color: Colors.black87, fontSize: 12)),
+          text: months[i],
+          style: const TextStyle(color: Colors.black87, fontSize: 12),
+        ),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
       );
       monthPainter.layout();
       final double groupWidth = barWidth * 2 + barSpace;
       monthPainter.paint(
-          canvas, Offset(x + groupWidth / 2 - monthPainter.width / 2, chartHeight + 28));
+        canvas,
+        Offset(x + groupWidth / 2 - monthPainter.width / 2, chartHeight + 28),
+      );
     }
 
     final legendTextStyle = const TextStyle(fontSize: 14);
     final startedLegend = TextPainter(
-        text:
-            TextSpan(text: 'Iniciados', style: legendTextStyle.copyWith(color: Colors.orange)),
-        textDirection: TextDirection.ltr)
-      ..layout();
+      text: TextSpan(
+        text: 'Iniciados',
+        style: legendTextStyle.copyWith(color: Colors.orange),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
     final closedLegend = TextPainter(
-        text: TextSpan(
-            text: 'Cerrados', style: legendTextStyle.copyWith(color: Colors.cyan[600]!)),
-        textDirection: TextDirection.ltr)
-      ..layout();
+      text: TextSpan(
+        text: 'Cerrados',
+        style: legendTextStyle.copyWith(color: Colors.cyan[600]!),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
 
     final double legendY = chartHeight + 55;
 
-    canvas.drawRect(Rect.fromLTWH(leftPadding + 10, legendY, 18, 10), Paint()..color = Colors.orange);
+    canvas.drawRect(
+      Rect.fromLTWH(leftPadding + 10, legendY, 18, 10),
+      Paint()..color = Colors.orange,
+    );
     startedLegend.paint(canvas, Offset(leftPadding + 32, legendY - 2));
 
-    canvas.drawRect(Rect.fromLTWH(leftPadding + 110, legendY, 18, 10), Paint()..color = Colors.cyan[600]!);
+    canvas.drawRect(
+      Rect.fromLTWH(leftPadding + 110, legendY, 18, 10),
+      Paint()..color = Colors.cyan[600]!,
+    );
     closedLegend.paint(canvas, Offset(leftPadding + 132, legendY - 2));
 
     final titlePainter = TextPainter(
       text: const TextSpan(
-          text: 'Rotación de Proyectos (últimos 12 meses)',
-          style:
-              TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+        text: 'Rotación de Proyectos (últimos 12 meses)',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: size.width);
-    titlePainter.paint(canvas, Offset((size.width - titlePainter.width) / 2, -30));
+    titlePainter.paint(
+      canvas,
+      Offset((size.width - titlePainter.width) / 2, -30),
+    );
   }
 
   @override
@@ -1011,6 +1173,7 @@ class BarChartPainter extends CustomPainter {
         oldDelegate.selectedIsStarted != selectedIsStarted;
   }
 }
+
 class MultiSegmentCirclePainter extends CustomPainter {
   final double completedPercent;
   final double inProgressPercent;
@@ -1031,17 +1194,19 @@ class MultiSegmentCirclePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - strokeWidth / 2;
 
-    final backgroundPaint = Paint()
-      ..color = Colors.grey.shade300
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+    final backgroundPaint =
+        Paint()
+          ..color = Colors.grey.shade300
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth;
 
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round;
 
     double startAngle = -pi / 2;
 
@@ -1050,12 +1215,19 @@ class MultiSegmentCirclePainter extends CustomPainter {
     for (int i = 0; i < segments.length; i++) {
       paint.color = colors[i];
       double sweepAngle = 2 * pi * segments[i];
-      paint.strokeWidth = (i == selectedSegment) ? strokeWidth + 5 : strokeWidth;
-      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
-          sweepAngle, false, paint);
+      paint.strokeWidth =
+          (i == selectedSegment) ? strokeWidth + 5 : strokeWidth;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
       startAngle += sweepAngle;
     }
   }
+
   @override
   bool shouldRepaint(covariant MultiSegmentCirclePainter oldDelegate) {
     return oldDelegate.completedPercent != completedPercent ||

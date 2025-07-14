@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/user/user.dart';
+import 'package:login_app/user/cronograma.dart';
+import 'package:login_app/user/panel/panel_graficas.dart';
 
 class KanbanTaskManager extends StatefulWidget {
-  const KanbanTaskManager({super.key});
+  final String? processName;
+
+  const KanbanTaskManager({super.key, this.processName});
 
   @override
   State<KanbanTaskManager> createState() => _KanbanTaskManagerState();
@@ -26,6 +31,8 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
     'Tercer Sprint',
     'Cuarto Sprint',
   ];
+
+  String? _currentProcessCollectionName;
 
   @override
   void initState() {
@@ -57,6 +64,7 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
         'editando': true,
       },
     ];
+    _currentProcessCollectionName = widget.processName;
   }
 
   Color _estadoColor(String estado) {
@@ -106,7 +114,74 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
       backgroundColor: const Color(0xFF1E1E2D),
       appBar: AppBar(
         backgroundColor: Colors.teal.shade800,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (_) => TableroScreen(
+                      processName: _currentProcessCollectionName,
+                    ),
+              ),
+            );
+          },
+        ),
         title: const Text('Gestión de Tareas'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            onSelected: (String value) {
+              if (value == 'cronograma') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => TimelineScreen(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'panel') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PanelTrello(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'tablas') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => KanbanTaskManager(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              }
+            },
+            itemBuilder:
+                (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'cronograma',
+                    child: Text('Cronograma'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'tablas',
+                    child: Text('Tablas'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'panel',
+                    child: Text('Panel'),
+                  ),
+                ],
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(12),

@@ -8,6 +8,7 @@ import 'package:login_app/user/custom_drawer.dart';
 import 'package:login_app/user/home_page.dart';
 import 'package:login_app/user/procesos/procesos.dart';
 import 'package:login_app/user/user.dart';
+
 class UsuariosScreen extends StatefulWidget {
   @override
   _UsuariosScreenState createState() => _UsuariosScreenState();
@@ -88,27 +89,30 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       if (query.isEmpty) {
         usuariosFiltrados = usuarios.take(5).toList();
       } else {
-        usuariosFiltrados = usuarios.where((usuario) {
-          final nombre = (usuario['nombre'] ?? '').toString().toLowerCase();
-          final apellido = (usuario['apellido'] ?? '').toString().toLowerCase();
-          final correo = (usuario['correo'] ?? '').toString().toLowerCase();
-          final nombreCompleto = '$nombre $apellido';
+        usuariosFiltrados =
+            usuarios.where((usuario) {
+              final nombre = (usuario['nombre'] ?? '').toString().toLowerCase();
+              final apellido =
+                  (usuario['apellido'] ?? '').toString().toLowerCase();
+              final correo = (usuario['correo'] ?? '').toString().toLowerCase();
+              final nombreCompleto = '$nombre $apellido';
 
-          bool coincidencia = false;
-          if (!buscarPorNombre && !buscarPorApellido && !buscarPorCorreo) {
-            coincidencia = nombre.contains(query);
-          } else {
-            if (buscarPorNombre && buscarPorApellido) {
-              coincidencia = nombreCompleto.contains(query);
-            } else {
-              if (buscarPorNombre) coincidencia |= nombre.contains(query);
-              if (buscarPorApellido) coincidencia |= apellido.contains(query);
-            }
-            if (buscarPorCorreo) coincidencia |= correo.contains(query);
-          }
+              bool coincidencia = false;
+              if (!buscarPorNombre && !buscarPorApellido && !buscarPorCorreo) {
+                coincidencia = nombre.contains(query);
+              } else {
+                if (buscarPorNombre && buscarPorApellido) {
+                  coincidencia = nombreCompleto.contains(query);
+                } else {
+                  if (buscarPorNombre) coincidencia |= nombre.contains(query);
+                  if (buscarPorApellido)
+                    coincidencia |= apellido.contains(query);
+                }
+                if (buscarPorCorreo) coincidencia |= correo.contains(query);
+              }
 
-          return coincidencia;
-        }).toList();
+              return coincidencia;
+            }).toList();
       }
     });
   }
@@ -123,8 +127,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Wrap(
                 children: [
-                  const Text('Filtros de búsqueda',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Filtros de búsqueda',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   CheckboxListTile(
                     title: const Text('Nombre'),
                     value: buscarPorNombre,
@@ -159,7 +165,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cerrar'),
-                  )
+                  ),
                 ],
               ),
             );
@@ -184,8 +190,20 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? areaSeleccionada;
 
     final roles = ['Gerencia', 'Usuario', 'Supervisor'];
-    final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
-    final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
+    final ciudades = [
+      'Quito',
+      'Calderón',
+      'Tumbaco',
+      'Pomasqui',
+      'Centro Historico',
+    ];
+    final areas = [
+      'Ventas',
+      'Marketing',
+      'TI',
+      'Recursos Humanos',
+      'Operaciones',
+    ];
 
     showDialog(
       context: context,
@@ -194,7 +212,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SingleChildScrollView(
@@ -203,7 +223,13 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Agregar Usuario', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Agregar Usuario',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: nombreController,
@@ -238,8 +264,15 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Contraseña',
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
-                              icon: Icon(verContrasena ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
+                              icon: Icon(
+                                verContrasena
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed:
+                                  () => setStateDialog(
+                                    () => verContrasena = !verContrasena,
+                                  ),
                             ),
                           ),
                         ),
@@ -252,8 +285,15 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Confirmar contraseña',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(verConfirmacion ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setStateDialog(() => verConfirmacion = !verConfirmacion),
+                              icon: Icon(
+                                verConfirmacion
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed:
+                                  () => setStateDialog(
+                                    () => verConfirmacion = !verConfirmacion,
+                                  ),
                             ),
                           ),
                         ),
@@ -264,8 +304,18 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Rol',
                             prefixIcon: Icon(Icons.badge),
                           ),
-                          items: roles.map((rol) => DropdownMenuItem(value: rol, child: Text(rol))).toList(),
-                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
+                          items:
+                              roles
+                                  .map(
+                                    (rol) => DropdownMenuItem(
+                                      value: rol,
+                                      child: Text(rol),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) =>
+                                  setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -274,8 +324,19 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Ciudad',
                             prefixIcon: Icon(Icons.location_city),
                           ),
-                          items: ciudades.map((ciudad) => DropdownMenuItem(value: ciudad, child: Text(ciudad))).toList(),
-                          onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
+                          items:
+                              ciudades
+                                  .map(
+                                    (ciudad) => DropdownMenuItem(
+                                      value: ciudad,
+                                      child: Text(ciudad),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) => setStateDialog(
+                                () => ciudadSeleccionada = val,
+                              ),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -284,8 +345,18 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Área',
                             prefixIcon: Icon(Icons.work),
                           ),
-                          items: areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
-                          onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
+                          items:
+                              areas
+                                  .map(
+                                    (area) => DropdownMenuItem(
+                                      value: area,
+                                      child: Text(area),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) =>
+                                  setStateDialog(() => areaSeleccionada = val),
                         ),
                         const SizedBox(height: 20),
                         Row(
@@ -302,27 +373,57 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                 final nombre = nombreController.text.trim();
                                 final apellido = apellidoController.text.trim();
                                 final correo = correoController.text.trim();
-                                final contrasena = contrasenaController.text.trim();
-                                final confirmar = confirmarContrasenaController.text.trim();
+                                final contrasena =
+                                    contrasenaController.text.trim();
+                                final confirmar =
+                                    confirmarContrasenaController.text.trim();
 
-                                if ([nombre, apellido, correo, contrasena, confirmar].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa todos los campos')));
+                                if ([
+                                      nombre,
+                                      apellido,
+                                      correo,
+                                      contrasena,
+                                      confirmar,
+                                    ].any((e) => e.isEmpty) ||
+                                    rolSeleccionado == null ||
+                                    ciudadSeleccionada == null ||
+                                    areaSeleccionada == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Completa todos los campos',
+                                      ),
+                                    ),
+                                  );
                                   return;
                                 }
 
                                 if (contrasena != confirmar) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Las contraseñas no coinciden')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Las contraseñas no coinciden',
+                                      ),
+                                    ),
+                                  );
                                   return;
                                 }
 
-                                final emailValido = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(correo);
+                                final emailValido = RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(correo);
                                 if (!emailValido) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Correo inválido')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Correo inválido'),
+                                    ),
+                                  );
                                   return;
                                 }
 
-                                final url = Uri.parse('$baseUrl/usuarios/registro');
+                                final url = Uri.parse(
+                                  '$baseUrl/usuarios/registro',
+                                );
                                 final response = await http.post(
                                   url,
                                   headers: {'Content-Type': 'application/json'},
@@ -337,17 +438,29 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   }),
                                 );
 
-                                if (response.statusCode == 200 || response.statusCode == 201) {
+                                if (response.statusCode == 200 ||
+                                    response.statusCode == 201) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario agregado exitosamente')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Usuario agregado exitosamente',
+                                      ),
+                                    ),
+                                  );
                                 } else {
                                   String mensaje = 'Error al guardar';
                                   try {
                                     final jsonResp = jsonDecode(response.body);
-                                    mensaje = jsonResp['mensaje'] ?? jsonResp['error'] ?? mensaje;
+                                    mensaje =
+                                        jsonResp['mensaje'] ??
+                                        jsonResp['error'] ??
+                                        mensaje;
                                   } catch (_) {}
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(mensaje)),
+                                  );
                                 }
                               },
                             ),
@@ -377,8 +490,20 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? areaSeleccionada = usuario['area'];
 
     final roles = ['Gerencia', 'Usuario', 'Supervisor'];
-    final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
-    final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
+    final ciudades = [
+      'Quito',
+      'Calderón',
+      'Tumbaco',
+      'Pomasqui',
+      'Centro Historico',
+    ];
+    final areas = [
+      'Ventas',
+      'Marketing',
+      'TI',
+      'Recursos Humanos',
+      'Operaciones',
+    ];
 
     bool verContrasena = false;
 
@@ -389,7 +514,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SingleChildScrollView(
@@ -398,7 +525,13 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Actualizar Usuario', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Actualizar Usuario',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: nombreController,
@@ -433,8 +566,15 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Nueva Contraseña (opcional)',
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
-                              icon: Icon(verContrasena ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
+                              icon: Icon(
+                                verContrasena
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed:
+                                  () => setStateDialog(
+                                    () => verContrasena = !verContrasena,
+                                  ),
                             ),
                           ),
                         ),
@@ -445,8 +585,18 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Rol',
                             prefixIcon: Icon(Icons.badge),
                           ),
-                          items: roles.map((rol) => DropdownMenuItem(value: rol, child: Text(rol))).toList(),
-                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
+                          items:
+                              roles
+                                  .map(
+                                    (rol) => DropdownMenuItem(
+                                      value: rol,
+                                      child: Text(rol),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) =>
+                                  setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -455,8 +605,19 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Ciudad',
                             prefixIcon: Icon(Icons.location_city),
                           ),
-                          items: ciudades.map((ciudad) => DropdownMenuItem(value: ciudad, child: Text(ciudad))).toList(),
-                          onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
+                          items:
+                              ciudades
+                                  .map(
+                                    (ciudad) => DropdownMenuItem(
+                                      value: ciudad,
+                                      child: Text(ciudad),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) => setStateDialog(
+                                () => ciudadSeleccionada = val,
+                              ),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -465,8 +626,18 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             labelText: 'Área',
                             prefixIcon: Icon(Icons.work),
                           ),
-                          items: areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
-                          onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
+                          items:
+                              areas
+                                  .map(
+                                    (area) => DropdownMenuItem(
+                                      value: area,
+                                      child: Text(area),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (val) =>
+                                  setStateDialog(() => areaSeleccionada = val),
                         ),
                         const SizedBox(height: 20),
                         Row(
@@ -483,17 +654,36 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                 final nombre = nombreController.text.trim();
                                 final apellido = apellidoController.text.trim();
                                 final correo = correoController.text.trim();
-                                final contrasena = contrasenaController.text.trim();
+                                final contrasena =
+                                    contrasenaController.text.trim();
 
-                                if ([nombre, apellido, correo].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa todos los campos')));
+                                if ([
+                                      nombre,
+                                      apellido,
+                                      correo,
+                                    ].any((e) => e.isEmpty) ||
+                                    rolSeleccionado == null ||
+                                    ciudadSeleccionada == null ||
+                                    areaSeleccionada == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Completa todos los campos',
+                                      ),
+                                    ),
+                                  );
                                   return;
                                 }
 
-                                final emailValido = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(correo);
+                                final emailValido = RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(correo);
                                 if (!emailValido) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Correo inválido')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Correo inválido'),
+                                    ),
+                                  );
                                   return;
                                 }
 
@@ -509,7 +699,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   body['contraseña'] = contrasena;
                                 }
 
-                                final url = Uri.parse('$baseUrl/usuarios/${usuario["_id"]}');
+                                final url = Uri.parse(
+                                  '$baseUrl/usuarios/${usuario["_id"]}',
+                                );
                                 final response = await http.put(
                                   url,
                                   headers: {'Content-Type': 'application/json'},
@@ -519,14 +711,23 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                 if (response.statusCode == 200) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario actualizado')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Usuario actualizado'),
+                                    ),
+                                  );
                                 } else {
                                   String mensaje = 'Error al actualizar';
                                   try {
                                     final jsonResp = jsonDecode(response.body);
-                                    mensaje = jsonResp['mensaje'] ?? jsonResp['error'] ?? mensaje;
+                                    mensaje =
+                                        jsonResp['mensaje'] ??
+                                        jsonResp['error'] ??
+                                        mensaje;
                                   } catch (_) {}
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(mensaje)),
+                                  );
                                 }
                               },
                             ),
@@ -547,14 +748,27 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   void _confirmarEliminacion(String id) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar usuario'),
-        content: const Text('¿Estás seguro de eliminar este usuario?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(onPressed: () async { Navigator.pop(context); await _eliminarUsuario(id); }, child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Eliminar usuario'),
+            content: const Text('¿Estás seguro de eliminar este usuario?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _eliminarUsuario(id);
+                },
+                child: const Text(
+                  'Eliminar',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
@@ -567,12 +781,18 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
           usuarios.removeWhere((u) => u['_id'] == id);
           usuariosFiltrados.removeWhere((u) => u['_id'] == id);
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario eliminado')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Usuario eliminado')));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al eliminar usuario')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al eliminar usuario')),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
     }
   }
 
@@ -586,7 +806,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       leading: CircleAvatar(
         backgroundColor: Colors.blue,
         child: Text(
-          (nombre.isNotEmpty && apellido.isNotEmpty) ? '${nombre[0]}${apellido[0]}'.toUpperCase() : '?',
+          (nombre.isNotEmpty && apellido.isNotEmpty)
+              ? '${nombre[0]}${apellido[0]}'.toUpperCase()
+              : '?',
           style: const TextStyle(color: Colors.white),
         ),
       ),
@@ -612,74 +834,85 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
   @override
   Widget build(BuildContext context) {
-return Scaffold(
-  appBar: AppBar(
-    title: const Text('Usuarios'),
-    actions: [
-      IconButton(icon: const Icon(Icons.refresh), onPressed: fetchUsuarios),
-      IconButton(icon: const Icon(Icons.filter_alt), onPressed: _mostrarPanelFiltros),
-    ],
-  ),
-drawer: CustomDrawer(
-  selectedIndex: 1,
-  onItemTap: (index) {
-    Navigator.pop(context); // Cierra el drawer
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => DashboardPage()),
-      );
-    } else if (index == 1) {
-      // Ya estás en UsuariosScreen, no hace falta redirigir
-
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => ProcesosRud()),
-      );
-    } else if (index == 3) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => TableroScreen()),
-      );
-    }
-  },
-),
-  body: Center(
-    child: isLoading
-        ? const CircularProgressIndicator()
-        : errorMessage != null
-            ? Text(errorMessage!, style: const TextStyle(color: Colors.red))
-            : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        labelText: 'Buscar',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.search),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Usuarios'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: fetchUsuarios),
+          IconButton(
+            icon: const Icon(Icons.filter_alt),
+            onPressed: _mostrarPanelFiltros,
+          ),
+        ],
+      ),
+      drawer: CustomDrawer(
+        selectedIndex: 1,
+        onItemTap: (index) {
+          Navigator.pop(context); // Cierra el drawer
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => DashboardPage()),
+            );
+          } else if (index == 1) {
+            // Ya estás en UsuariosScreen, no hace falta redirigir
+          } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => ProcesosRud()),
+            );
+          } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => TableroScreen()),
+            );
+          }
+        },
+      ),
+      body: Center(
+        child:
+            isLoading
+                ? const CircularProgressIndicator()
+                : errorMessage != null
+                ? Text(errorMessage!, style: const TextStyle(color: Colors.red))
+                : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.search),
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: usuariosFiltrados.isEmpty
-                        ? const Center(child: Text('No hay usuarios registrados que coincidan con la búsqueda.'))
-                        : ListView.separated(
-                            itemCount: usuariosFiltrados.length,
-                            separatorBuilder: (_, __) => const Divider(),
-                            itemBuilder: (_, index) => buildUsuarioItem(usuariosFiltrados[index]),
-                          ),
-                  ),
-                ],
-              ),
-  ),
-  floatingActionButton: FloatingActionButton(
-    onPressed: _mostrarFormularioAgregarUsuario,
-    child: const Icon(Icons.add),
-    tooltip: 'Agregar nuevo usuario',
-  ),
-);
+                    Expanded(
+                      child:
+                          usuariosFiltrados.isEmpty
+                              ? const Center(
+                                child: Text(
+                                  'No hay usuarios registrados que coincidan con la búsqueda.',
+                                ),
+                              )
+                              : ListView.separated(
+                                itemCount: usuariosFiltrados.length,
+                                separatorBuilder: (_, __) => const Divider(),
+                                itemBuilder:
+                                    (_, index) => buildUsuarioItem(
+                                      usuariosFiltrados[index],
+                                    ),
+                              ),
+                    ),
+                  ],
+                ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _mostrarFormularioAgregarUsuario,
+        child: const Icon(Icons.add),
+        tooltip: 'Agregar nuevo usuario',
+      ),
+    );
   }
 }

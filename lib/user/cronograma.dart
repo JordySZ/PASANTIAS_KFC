@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:login_app/user/models/task.dart';
+import 'package:login_app/user/panel/panel_graficas.dart';
+import 'package:login_app/user/tabla/home_screen.dart';
 import 'package:login_app/user/widgets/timeline_painter.dart';
 import 'package:login_app/user/widgets/timeline_header_painter.dart';
-
-
+import 'package:login_app/user/user.dart'; // Asegúrate de importar TableroScreen
 
 class TimelineScreen extends StatefulWidget {
-  const TimelineScreen({super.key});
+  final String? processName; // Añade este parámetro opcional
+
+  const TimelineScreen({super.key, this.processName});
 
   @override
   State<TimelineScreen> createState() => _TimelineScreenState();
@@ -27,6 +30,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
   late DateTime _maxDate;
   late int _totalDays;
 
+  String? _currentProcessCollectionName;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +39,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToToday();
     });
+    _currentProcessCollectionName = widget.processName;
   }
 
   @override
@@ -48,10 +54,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
       _minDate = DateTime.now().subtract(const Duration(days: 7));
       _maxDate = DateTime.now().add(const Duration(days: 14));
     } else {
-      _minDate =
-          tasks.map((t) => t.startDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      _maxDate =
-          tasks.map((t) => t.endDate).reduce((a, b) => a.isAfter(b) ? a : b);
+      _minDate = tasks
+          .map((t) => t.startDate)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      _maxDate = tasks
+          .map((t) => t.endDate)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
       _minDate = _minDate.subtract(const Duration(days: 5));
       _maxDate = _maxDate.add(const Duration(days: 15));
     }
@@ -83,15 +91,83 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cronograma Amigable',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold)), // Estilo para el título
+        title: const Text(
+          'Cronograma Amigable',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (_) => TableroScreen(
+                      processName: _currentProcessCollectionName,
+                    ),
+              ),
+            );
+          },
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.today, color: Color.fromARGB(255, 245, 8, 8)), // Icono blanco
+            icon: const Icon(
+              Icons.today,
+              color: Color.fromARGB(255, 245, 8, 8),
+            ), // Icono blanco
             onPressed: _scrollToToday,
             tooltip: 'Ir a hoy',
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            onSelected: (String value) {
+              if (value == 'cronograma') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => TimelineScreen(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'panel') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PanelTrello(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'tablas') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => KanbanTaskManager(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              }
+            },
+            itemBuilder:
+                (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'cronograma',
+                    child: Text('Cronograma'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'tablas',
+                    child: Text('Tablas'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'panel',
+                    child: Text('Panel'),
+                  ),
+                ],
           ),
         ],
       ),
@@ -104,8 +180,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: Colors.lightBlue.shade100, // Fondo más suave
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(15.0)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(15.0),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -121,13 +198,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     Container(
                       width: taskNameColumnWidth,
                       decoration: BoxDecoration(
-                        color: Colors.lightBlue
-                            .shade200, // Color de fondo más distintivo
+                        color:
+                            Colors
+                                .lightBlue
+                                .shade200, // Color de fondo más distintivo
                         borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(15.0)),
+                          topLeft: Radius.circular(15.0),
+                        ),
                         border: Border(
-                            right: BorderSide(
-                                color: Colors.lightBlue.shade300!, width: 1.0)),
+                          right: BorderSide(
+                            color: Colors.lightBlue.shade300!,
+                            width: 1.0,
+                          ),
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -170,10 +253,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(15.0)),
+                          bottomLeft: Radius.circular(15.0),
+                        ),
                         border: Border(
-                            right: BorderSide(
-                                color: Colors.grey.shade200!, width: 1.0)),
+                          right: BorderSide(
+                            color: Colors.grey.shade200!,
+                            width: 1.0,
+                          ),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.03),
@@ -192,13 +279,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           final task = tasks[index];
                           return Container(
                             height: rowHeight,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12.0,
+                            ),
                             alignment: Alignment.centerLeft,
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                    color: Colors.grey.shade100, width: 1.0),
+                                  color: Colors.grey.shade100,
+                                  width: 1.0,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -224,7 +314,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white, // Fondo del cronograma
                               borderRadius: const BorderRadius.only(
-                                  bottomRight: Radius.circular(15.0)),
+                                bottomRight: Radius.circular(15.0),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.03),

@@ -1,30 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:login_app/user/home_page.dart';
+import 'package:login_app/user/tabla/home_screen.dart';
+import 'package:login_app/user/cronograma.dart';
+import 'package:login_app/user/user.dart';
+import 'package:login_app/services/api_service.dart';
+import 'package:login_app/models/tarjeta.dart';
+import 'package:login_app/models/lista_datos.dart';
+import 'package:login_app/models/process.dart';
+import 'package:login_app/services/api_service.dart' show GraficaConfiguracion;
+import 'package:login_app/user/home_page.dart';
 
 class PanelTrello extends StatefulWidget {
+  final String? processName;
+  const PanelTrello({Key? key, this.processName}) : super(key: key);
+
   @override
   _PanelTrelloState createState() => _PanelTrelloState();
 }
 
-class GraficaConfiguracion {
-  String tipoGrafica; // barras, circular, lineas
-  String filtro; // lista, miembro, etiqueta, vencimiento
-  String periodo; // Solo para lineas
-
-  GraficaConfiguracion({
-    required this.tipoGrafica,
-    required this.filtro,
-    this.periodo = "Semana pasada",
-  });
-}
-
 class _PanelTrelloState extends State<PanelTrello> {
   List<GraficaConfiguracion> graficas = [];
-  final Map<String, Color> coloresFijos = {
-    'Cumplida': Colors.green,
-    'Vence pronto': Colors.orange,
-    'Sin fecha': Colors.grey,
-  };
+  final ApiService _apiService = ApiService();
+
+  // Datos reales
+  List<ListaDatos> listas = [];
+  List<Tarjeta> tarjetas = [];
+  String? _currentProcessCollectionName;
 
   // Iconos para filtros
   final Map<String, IconData> filtroIconos = {
@@ -44,115 +46,513 @@ class _PanelTrelloState extends State<PanelTrello> {
     Colors.indigo,
   ];
 
+  // Colores fijos para leyendas específicas
+  final Map<String, Color> coloresFijos = {
+    'Cumplida': Colors.green,
+    'Vence pronto': Colors.orange,
+    'Sin fecha': Colors.grey,
+    'Vencida': Colors.red,
+    'Futuro': Colors.blue,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    // Usa el processName recibido por el widget
+    _currentProcessCollectionName = widget.processName;
+    if (_currentProcessCollectionName != null) {
+      _loadListsAndCards(_currentProcessCollectionName!);
+      _loadGraficasFromBackend();
+    }
+  }
+
+  // Elimina el método _loadProcessAndData, ya que no debe cambiar el nombre de la tienda.
+  // Si necesitas cargar todos los procesos, hazlo en otra pantalla.
+
+  Future<void> _loadListsAndCards(String processName) async {
+    try {
+      final loadedLists = await _apiService.getLists(processName);
+      final loadedCards = await _apiService.getCards(processName);
+      setState(() {
+        listas = loadedLists;
+        tarjetas = loadedCards;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al cargar datos: $e')));
+    }
+  }
+
+  Future<void> _loadGraficasFromBackend() async {
+    if (_currentProcessCollectionName == null) return;
+    final loadedGraficas = await _apiService.getGraficas(
+      _currentProcessCollectionName!,
+    );
+    setState(() {
+      graficas = loadedGraficas.cast<GraficaConfiguracion>();
+    });
+  }
+
+  Future<void> _addGraficaToBackend(GraficaConfiguracion config) async {
+    if (_currentProcessCollectionName == null) return;
+    final created = await _apiService.createGrafica(
+      _currentProcessCollectionName!,
+      config,
+    );
+    if (created != null) {
+      setState(() {
+        graficas.add(created);
+      });
+    }
+  }
+
+  Future<void> _updateGraficaInBackend(
+    int index,
+    GraficaConfiguracion config,
+  ) async {
+    if (_currentProcessCollectionName == null) return;
+    final updated = await _apiService.updateGrafica(
+      _currentProcessCollectionName!,
+      config,
+    );
+    if (updated != null) {
+      setState(() {
+        graficas[index] = updated as GraficaConfiguracion;
+      });
+    }
+  }
+
+  Future<void> _deleteGraficaFromBackend(int index) async {
+    if (_currentProcessCollectionName == null) return;
+    final grafica = graficas[index];
+    if (grafica.id == null) return;
+    final success = await _apiService.deleteGrafica(
+      _currentProcessCollectionName!,
+      grafica.id!,
+    );
+    if (success) {
+      setState(() {
+        graficas.removeAt(index);
+      });
+    }
+  }
+
+  // Procesamiento de datos para las gráficas (adaptado al modelo de user.dart)
+  Map<String, int> _getBarData(String filtro) {
+    final Map<String, int> data = {};
+    switch (filtro) {
+      case "lista":
+        for (var lista in listas) {
+          data[lista.titulo] =
+              tarjetas.where((t) => t.idLista == lista.id).length;
+        }
+        break;
+      case "miembro":
+        for (var tarjeta in tarjetas) {
+          final miembro =
+              (tarjeta.miembro != null && tarjeta.miembro.isNotEmpty)
+                  ? tarjeta.miembro
+                  : "Sin asignar";
+          data[miembro] = (data[miembro] ?? 0) + 1;
+        }
+        break;
+      case "etiqueta":
+        for (var tarjeta in tarjetas) {
+          final etiqueta =
+              (tarjeta.tarea != null && tarjeta.tarea.isNotEmpty)
+                  ? tarjeta.tarea
+                  : "Sin etiqueta";
+          data[etiqueta] = (data[etiqueta] ?? 0) + 1;
+        }
+        break;
+      case "vencimiento":
+        final hoy = DateTime.now();
+        for (var tarjeta in tarjetas) {
+          String key;
+          if (tarjeta.fechaVencimiento == null) {
+            key = "Sin fecha";
+          } else if (tarjeta.fechaVencimiento!.isBefore(hoy)) {
+            key = "Vencida";
+          } else if (tarjeta.fechaVencimiento!.difference(hoy).inDays <= 2) {
+            key = "Vence pronto";
+          } else {
+            key = "Futuro";
+          }
+          data[key] = (data[key] ?? 0) + 1;
+        }
+        break;
+    }
+    return data;
+  }
+
+  Map<String, int> _getPieData(String filtro) {
+    final Map<String, int> data = {};
+    switch (filtro) {
+      case "lista":
+        for (var lista in listas) {
+          data[lista.titulo] =
+              tarjetas
+                  .where(
+                    (t) =>
+                        t.idLista == lista.id &&
+                        t.estado == EstadoTarjeta.hecho,
+                  )
+                  .length;
+        }
+        break;
+      case "miembro":
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            final miembro =
+                (tarjeta.miembro != null && tarjeta.miembro.isNotEmpty)
+                    ? tarjeta.miembro
+                    : "Sin asignar";
+            data[miembro] = (data[miembro] ?? 0) + 1;
+          }
+        }
+        break;
+      case "etiqueta":
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            final etiqueta =
+                (tarjeta.tarea != null && tarjeta.tarea.isNotEmpty)
+                    ? tarjeta.tarea
+                    : "Sin etiqueta";
+            data[etiqueta] = (data[etiqueta] ?? 0) + 1;
+          }
+        }
+        break;
+      case "vencimiento":
+        final hoy = DateTime.now();
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            String key;
+            if (tarjeta.fechaVencimiento == null) {
+              key = "Sin fecha";
+            } else if (tarjeta.fechaVencimiento!.isBefore(hoy)) {
+              key = "Vencida";
+            } else if (tarjeta.fechaVencimiento!.difference(hoy).inDays <= 2) {
+              key = "Vence pronto";
+            } else {
+              key = "Futuro";
+            }
+            data[key] = (data[key] ?? 0) + 1;
+          }
+        }
+        break;
+    }
+    return data;
+  }
+
+  Map<String, List<FlSpot>> _getLineData(String filtro, String periodo) {
+    final Map<String, List<FlSpot>> series = {};
+    final now = DateTime.now();
+    int periods = periodo == "Mes pasado" ? 4 : 2;
+    int daysPerPeriod = periodo == "Mes pasado" ? 7 : 7;
+
+    List<DateTime> periodStarts = List.generate(
+      periods,
+      (i) => now.subtract(Duration(days: (periods - i) * daysPerPeriod)),
+    );
+    Map<String, List<Tarjeta>> tarjetasPorFiltro = {};
+
+    switch (filtro) {
+      case "lista":
+        for (var lista in listas) {
+          tarjetasPorFiltro[lista.titulo] =
+              tarjetas
+                  .where(
+                    (t) =>
+                        t.idLista == lista.id &&
+                        t.estado == EstadoTarjeta.hecho,
+                  )
+                  .toList();
+        }
+        break;
+      case "miembro":
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            final miembro =
+                (tarjeta.miembro != null && tarjeta.miembro.isNotEmpty)
+                    ? tarjeta.miembro
+                    : "Sin asignar";
+            tarjetasPorFiltro[miembro] =
+                (tarjetasPorFiltro[miembro] ?? [])..add(tarjeta);
+          }
+        }
+        break;
+      case "etiqueta":
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            final etiqueta =
+                (tarjeta.tarea != null && tarjeta.tarea.isNotEmpty)
+                    ? tarjeta.tarea
+                    : "Sin etiqueta";
+            tarjetasPorFiltro[etiqueta] =
+                (tarjetasPorFiltro[etiqueta] ?? [])..add(tarjeta);
+          }
+        }
+        break;
+      case "vencimiento":
+        for (var tarjeta in tarjetas) {
+          if (tarjeta.estado == EstadoTarjeta.hecho) {
+            String key;
+            if (tarjeta.fechaVencimiento == null) {
+              key = "Sin fecha";
+            } else if (tarjeta.fechaVencimiento!.isBefore(now)) {
+              key = "Vencida";
+            } else if (tarjeta.fechaVencimiento!.difference(now).inDays <= 2) {
+              key = "Vence pronto";
+            } else {
+              key = "Futuro";
+            }
+            tarjetasPorFiltro[key] =
+                (tarjetasPorFiltro[key] ?? [])..add(tarjeta);
+          }
+        }
+        break;
+    }
+
+    tarjetasPorFiltro.forEach((key, listaTarjetas) {
+      List<FlSpot> spots = [];
+      for (int i = 0; i < periods; i++) {
+        final start = periodStarts[i];
+        final end = start.add(Duration(days: daysPerPeriod));
+        final count =
+            listaTarjetas
+                .where(
+                  (t) =>
+                      t.fechaCompletado != null &&
+                      t.fechaCompletado!.isAfter(start) &&
+                      t.fechaCompletado!.isBefore(end),
+                )
+                .length;
+        spots.add(FlSpot(i.toDouble(), count.toDouble()));
+      }
+      series[key] = spots;
+    });
+
+    return series;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFF2E2E2E),
       appBar: AppBar(
         backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            // Redirige al tablero del proceso actual usando el processName correcto
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (_) => TableroScreen(
+                      processName: _currentProcessCollectionName,
+                    ),
+              ),
+            );
+          },
+        ),
         title: Text(
           ("Panel de Proyecto"),
           style: TextStyle(color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.add, color: Colors.white),
-            onPressed: () => _mostrarDialogoConfiguracion(),
-            tooltip: "Añadir gráfica",
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            onSelected: (String value) {
+              if (value == 'cronograma') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => TimelineScreen(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'panel') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PanelTrello(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'tablas') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => KanbanTaskManager(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              }
+            },
+            itemBuilder:
+                (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'cronograma',
+                    child: Text('Cronograma'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'tablas',
+                    child: Text('Tablas'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'panel',
+                    child: Text('Panel'),
+                  ),
+                ],
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(10),
-        child:
-            graficas.isEmpty
-                ? Center(
-                  child: Text(
-                    "Añade una gráfica con el botón + arriba",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                )
-                : GridView.builder(
-                  itemCount: graficas.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    childAspectRatio: 2.3,
-                  ),
-                  itemBuilder: (context, index) {
-                    GraficaConfiguracion config = graficas[index];
-                    return Card(
-                      color: Color(0xFF3A3A3A),
-                      child: Stack(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Título con filtro arriba a la izquierda
-                                Row(
-                                  children: [
-                                    Icon(
-                                      filtroIconos[config.filtro] ??
-                                          Icons.bar_chart,
-                                      color: Colors.white70,
-                                      size: 18,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        _tituloGrafica(config),
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 8),
-                                Expanded(child: _construirGrafica(config)),
-                              ],
+        child: Column(
+          children: [
+            Expanded(
+              child:
+                  graficas.isEmpty
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Añade una gráfica para comenzar +",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                          Positioned(
-                            top: 5,
-                            right: 5,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          ],
+                        ),
+                      )
+                      : GridView.builder(
+                        itemCount: graficas.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                          childAspectRatio: 2.3,
+                        ),
+                        itemBuilder: (context, index) {
+                          // Protege el acceso: solo renderiza si el índice es válido
+                          if (index < 0 || index >= graficas.length) {
+                            return SizedBox(); // No renderiza nada si el índice está fuera de rango
+                          }
+                          GraficaConfiguracion config = graficas[index];
+                          return Card(
+                            color: Color(0xFF3A3A3A),
+                            child: Stack(
                               children: [
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: Colors.white),
-                                  onPressed:
-                                      () => _mostrarDialogoConfiguracion(
-                                        editar: true,
-                                        index: index,
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Título con filtro arriba a la izquierda
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            filtroIconos[config.filtro] ??
+                                                Icons.bar_chart,
+                                            color: Colors.white70,
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              _tituloGrafica(config),
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                  tooltip: "Editar gráfica",
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.redAccent,
+                                      SizedBox(height: 8),
+                                      Expanded(
+                                        child: _construirGrafica(config),
+                                      ),
+                                    ],
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      graficas.removeAt(index);
-                                    });
-                                  },
-                                  tooltip: "Eliminar gráfica",
+                                ),
+                                Positioned(
+                                  top: 5,
+                                  right: 5,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed:
+                                            () => _mostrarDialogoConfiguracion(
+                                              editar: true,
+                                              index: index,
+                                            ),
+                                        tooltip: "Editar gráfica",
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.redAccent,
+                                        ),
+                                        onPressed: () async {
+                                          await _deleteGraficaFromBackend(
+                                            index,
+                                          );
+                                        },
+                                        tooltip: "Eliminar gráfica",
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12.0, right: 12.0),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.add,
+                    color: const Color.fromARGB(255, 0, 0, 0),
+                    size: 35,
+                  ),
+                  onPressed: () => _mostrarDialogoConfiguracion(),
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all<Color>(
+                      const Color.fromARGB(255, 255, 255, 255),
+                    ),
+                    shape: MaterialStateProperty.all<CircleBorder>(
+                      CircleBorder(),
+                    ),
+                  ),
+                  tooltip: "Añadir gráfica",
                 ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -395,24 +795,21 @@ class _PanelTrelloState extends State<PanelTrello> {
                   ),
                   ElevatedButton(
                     child: Text(editar ? "Guardar" : "Añadir"),
-                    onPressed: () {
-                      setState(() {
-                        if (editar) {
-                          graficas[index!] = GraficaConfiguracion(
-                            tipoGrafica: tipo,
-                            filtro: filtro,
-                            periodo: periodo,
-                          );
-                        } else {
-                          graficas.add(
-                            GraficaConfiguracion(
-                              tipoGrafica: tipo,
-                              filtro: filtro,
-                              periodo: periodo,
-                            ),
-                          );
-                        }
-                      });
+                    onPressed: () async {
+                      if (editar) {
+                        final config = graficas[index!];
+                        config.tipoGrafica = tipo;
+                        config.filtro = filtro;
+                        config.periodo = periodo;
+                        await _updateGraficaInBackend(index!, config);
+                      } else {
+                        final nuevaGrafica = GraficaConfiguracion(
+                          tipoGrafica: tipo,
+                          filtro: filtro,
+                          periodo: periodo,
+                        );
+                        await _addGraficaToBackend(nuevaGrafica);
+                      }
                       Navigator.pop(context);
                     },
                   ),
@@ -423,66 +820,10 @@ class _PanelTrelloState extends State<PanelTrello> {
     );
   }
 
-  // Datos simulados por filtro para barras
-  Map<String, Map<String, int>> datosBarrasPorFiltro = {
-    "lista": {"Backlog": 5, "En progreso": 7, "Revisión": 3, "Finalizado": 8},
-    "miembro": {"Alex": 4, "Maria": 6, "Juan": 5, "Ana": 3},
-    "etiqueta": {"Urgente": 6, "Media": 4, "Baja": 2},
-    "vencimiento": {"Hoy": 3, "Esta semana": 7, "Sin fecha": 5},
-  };
-
-  // Datos simulados por filtro para pie
-  Map<String, Map<String, int>> datosPiePorFiltro = {
-    "lista": {"Cumplida": 6, "Vence pronto": 3, "Sin fecha": 1},
-    "miembro": {"Alex": 5, "Maria": 3, "Juan": 2},
-    "etiqueta": {"Urgente": 4, "Media": 4, "Baja": 2},
-    "vencimiento": {"Hoy": 5, "Esta semana": 4, "Sin fecha": 3},
-  };
-
-  // Datos simulados para líneas (más simples, solo según periodo)
-  Map<String, List<FlSpot>> datosLineasPorPeriodo = {
-    "Semana pasada": [
-      FlSpot(0, 2),
-      FlSpot(1, 4),
-      FlSpot(2, 6),
-      FlSpot(3, 8),
-      FlSpot(4, 6),
-    ],
-    "Últimas dos semanas": [
-      FlSpot(0, 1),
-      FlSpot(1, 3),
-      FlSpot(2, 5),
-      FlSpot(3, 7),
-      FlSpot(4, 9),
-      FlSpot(5, 6),
-      FlSpot(6, 4),
-    ],
-    "Mes pasado": [
-      FlSpot(0, 2),
-      FlSpot(1, 3),
-      FlSpot(2, 4),
-      FlSpot(3, 5),
-      FlSpot(4, 6),
-      FlSpot(5, 7),
-      FlSpot(6, 8),
-      FlSpot(7, 7),
-      FlSpot(8, 6),
-      FlSpot(9, 5),
-      FlSpot(10, 4),
-      FlSpot(11, 3),
-      FlSpot(12, 2),
-      FlSpot(13, 1),
-      FlSpot(14, 0),
-    ],
-  };
-
   Widget _buildBarChart(GraficaConfiguracion config) {
-    final datos = datosBarrasPorFiltro[config.filtro] ?? {};
-
+    final datos = _getBarData(config.filtro);
     final labels = datos.keys.toList();
     final valores = datos.values.toList();
-
-    // Aseguramos que la lista de colores tenga al menos la cantidad de datos
     final colores = List<Color>.generate(
       valores.length,
       (index) => listaColores[index % listaColores.length],
@@ -497,7 +838,7 @@ class _PanelTrelloState extends State<PanelTrello> {
             child: BarChart(
               BarChartData(
                 barTouchData: BarTouchData(
-                  enabled: true,
+                  enabled: false,
                 ), // Desactivamos touch para evitar errores (Si se desea, se puede activar)
                 gridData: FlGridData(show: false),
                 titlesData: FlTitlesData(
@@ -572,7 +913,7 @@ class _PanelTrelloState extends State<PanelTrello> {
   }
 
   Widget _buildPieChart(GraficaConfiguracion config) {
-    final datos = datosPiePorFiltro[config.filtro] ?? {"Sin datos": 1};
+    final datos = _getPieData(config.filtro);
     Map<String, Color> coloresDinamicos = {};
     int colorIndex = 0;
 
@@ -653,100 +994,11 @@ class _PanelTrelloState extends State<PanelTrello> {
   }
 
   Widget _buildLineChart(GraficaConfiguracion config) {
-    // Datos simulados con series diferenciadas por filtro, periodo y serie
-    Map<String, Map<String, Map<String, List<FlSpot>>>>
-    datosLineasPorFiltroYPeriodoYSerie = {
-      "lista": {
-        "Semana pasada": {
-          "Cumplida": [FlSpot(0, 2), FlSpot(1, 4), FlSpot(2, 6)],
-          "Vence pronto": [FlSpot(0, 1), FlSpot(1, 3), FlSpot(2, 5)],
-          "Sin fecha": [FlSpot(0, 3), FlSpot(1, 2), FlSpot(2, 4)],
-        },
-        "Últimas dos semanas": {
-          "Cumplida": [FlSpot(0, 3), FlSpot(1, 5), FlSpot(2, 7)],
-          "Vence pronto": [FlSpot(0, 2), FlSpot(1, 4), FlSpot(2, 6)],
-          "Sin fecha": [FlSpot(0, 1), FlSpot(1, 3), FlSpot(2, 5)],
-        },
-        "Mes pasado": {
-          "Cumplida": [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 4)],
-          "Vence pronto": [FlSpot(0, 2), FlSpot(1, 1), FlSpot(2, 3)],
-          "Sin fecha": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 5)],
-        },
-      },
-      "miembro": {
-        "Semana pasada": {
-          "Alex": [FlSpot(0, 4), FlSpot(1, 5), FlSpot(2, 7)],
-          "Maria": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-          "Juan": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 5)],
-        },
-        "Últimas dos semanas": {
-          "Alex": [FlSpot(0, 5), FlSpot(1, 6), FlSpot(2, 8)],
-          "Maria": [FlSpot(0, 4), FlSpot(1, 5), FlSpot(2, 7)],
-          "Juan": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-        },
-        "Mes pasado": {
-          "Alex": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 5)],
-          "Maria": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 4)],
-          "Juan": [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 3)],
-        },
-      },
-      "etiqueta": {
-        "Semana pasada": {
-          "Urgente": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-          "Media": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 5)],
-          "Baja": [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 4)],
-        },
-        "Últimas dos semanas": {
-          "Urgente": [FlSpot(0, 4), FlSpot(1, 5), FlSpot(2, 7)],
-          "Media": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-          "Baja": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 5)],
-        },
-        "Mes pasado": {
-          "Urgente": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 4)],
-          "Media": [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 3)],
-          "Baja": [FlSpot(0, 0), FlSpot(1, 1), FlSpot(2, 2)],
-        },
-      },
-      "vencimiento": {
-        "Semana pasada": {
-          "Hoy": [FlSpot(0, 5), FlSpot(1, 6), FlSpot(2, 8)],
-          "Esta semana": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-          "Sin fecha": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 5)],
-        },
-        "Últimas dos semanas": {
-          "Hoy": [FlSpot(0, 4), FlSpot(1, 5), FlSpot(2, 7)],
-          "Esta semana": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 6)],
-          "Sin fecha": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 5)],
-        },
-        "Mes pasado": {
-          "Hoy": [FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 5)],
-          "Esta semana": [FlSpot(0, 2), FlSpot(1, 3), FlSpot(2, 4)],
-          "Sin fecha": [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 3)],
-        },
-      },
-    };
+    final series = _getLineData(config.filtro, config.periodo);
 
-    Map<String, List<String>> nombresSeriesPorFiltro = {
-      "lista": ["Cumplida", "Vence pronto", "Sin fecha"],
-      "miembro": ["Alex", "Maria", "Juan"],
-      "etiqueta": ["Urgente", "Media", "Baja"],
-      "vencimiento": ["Hoy", "Esta semana", "Sin fecha"],
-    };
-
+    // Generar colores para cada serie (key)
     Map<String, Color> coloresDinamicos = {};
     int colorIndex = 0;
-
-    Map<String, List<FlSpot>> series = {};
-
-    List<String> nombresSeries = nombresSeriesPorFiltro[config.filtro] ?? [];
-
-    for (var nombre in nombresSeries) {
-      series[nombre] =
-          datosLineasPorFiltroYPeriodoYSerie[config.filtro]?[config
-              .periodo]?[nombre] ??
-          [];
-    }
-
     for (var key in series.keys) {
       if (coloresFijos.containsKey(key)) {
         coloresDinamicos[key] = coloresFijos[key]!;
@@ -794,7 +1046,7 @@ class _PanelTrelloState extends State<PanelTrello> {
                       return LineChartBarData(
                         spots: entry.value,
                         isCurved: true,
-                        color: coloresDinamicos[entry.key],
+                        color: coloresDinamicos[entry.key] ?? Colors.blue,
                         barWidth: 2,
                         dotData: FlDotData(show: true),
                       );
@@ -817,7 +1069,7 @@ class _PanelTrelloState extends State<PanelTrello> {
                       Container(
                         width: 15,
                         height: 15,
-                        color: coloresDinamicos[key],
+                        color: coloresDinamicos[key] ?? Colors.blue,
                       ),
                       SizedBox(width: 6),
                       Text(key, style: TextStyle(color: Colors.white)),
