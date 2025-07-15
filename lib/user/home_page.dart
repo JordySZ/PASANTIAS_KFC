@@ -19,6 +19,7 @@ class Project {
   final String
   endDate; // Las fechas se siguen guardando como String en este modelo
   final double progress;
+    final String? estado; // <--- ¡Añade esta línea aquí!
 
   Project({
     required this.name,
@@ -27,6 +28,7 @@ class Project {
     this.startDate = 'N/A',
     this.endDate = 'N/A',
     this.progress = 0.0,
+    this.estado, // <--- ¡Y también aquí!
   });
 }
 
@@ -100,16 +102,16 @@ class _DashboardPageState extends State<DashboardPage> {
       setState(() {
         _projects =
             fetchedProcesses
-                .map(
-                  (process) => Project(
-                    name: process.name,
-                    client: process.client ?? 'N/A',
-                    status: process.status ?? 'Activo',
-                    startDate: process.startDate.toIso8601String(),
-                    endDate: process.endDate.toIso8601String(),
-                    progress: process.progress ?? 0.0,
-                  ),
-                )
+              .map(
+  (process) => Project(
+    name: process.nombre_proceso,
+    startDate: process.startDate.toIso8601String(),
+    endDate: process.endDate.toIso8601String(),
+    progress: process.progress ?? 0.0,
+    // Agrega el campo 'estado' aquí:
+    estado: process.estado,
+  ),
+)
                 .toList();
 
         _isLoadingProjects = false;

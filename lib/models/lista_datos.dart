@@ -3,13 +3,15 @@ class ListaDatos {
   final String id; // El ID único de la lista, asignado por el backend
   String titulo; // El título editable de la lista
 
-  ListaDatos({required this.id, required this.titulo});
+
+  ListaDatos({required this.id, required this.titulo,});
 
   // Constructor para crear ListaDatos desde un mapa (ej. desde el backend)
   factory ListaDatos.fromMap(Map<String, dynamic> map) {
     return ListaDatos(
       id: map['_id'] as String, // Asume que el backend usa '_id' para las listas
       titulo: map['titulo'] as String,
+
     );
   }
 
@@ -18,6 +20,7 @@ class ListaDatos {
     return {
       '_id': id,
       'titulo': titulo,
+
     };
   }
 
@@ -25,10 +28,12 @@ class ListaDatos {
   ListaDatos copyWith({
     String? id,
     String? titulo,
+    int? orden, // **NUEVO: Permitir copiar el orden**
   }) {
     return ListaDatos(
       id: id ?? this.id,
       titulo: titulo ?? this.titulo,
+
     );
   }
 }
