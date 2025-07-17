@@ -378,47 +378,46 @@ class ApiService {
   /// Toma un objeto [Process] con los datos actualizados. El nombre del proceso
   /// se usa como identificador en la URL.
   /// Devuelve `true` si la actualización fue exitosa, `false` en caso contrario.
-Future<Process?> updateProcess(Process process) async {
-    // Usamos el nombre del proceso como identificador en la URL para la actualización.
-    // Asegúrate de que tu backend espera el nombre del proceso en la URL para las operaciones PUT.
-    final url = Uri.parse('$_baseUrl/procesos/${Uri.encodeComponent(process.nombre_proceso)}'); // <-- ¡Asegúrate que sea process.name, no process.nombre_proceso!
-  
-  try {
-    // Usamos process.toMap() para el cuerpo de la solicitud PUT.
-    // Asegúrate de que este método en tu modelo Process genere el JSON que tu backend espera para la actualización.
-    final Map<String, dynamic> bodyToSend = process.toMap(); // Captura el body que se envía
-    print('FLUTTER DEBUG API: updateProcess - Enviando datos para actualizar proceso: ${jsonEncode(bodyToSend)} a $url');
-    
-    final response = await http.put(
-      url,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(bodyToSend), // Asegúrate de que tu modelo Process tenga un toMap() para la actualización
-    );
+  Future<Process?> updateProcess(String originalProcessName, Process updatedProcessData) async {
+    // Usamos el nombre ORIGINAL del proceso como identificador en la URL para la actualización.
+    // Esto es crucial para que tu backend encuentre el proceso si el nombre ha cambiado.
+    final url = Uri.parse('$_baseUrl/procesos/${Uri.encodeComponent(originalProcessName)}'); // <-- ¡MODIFICADO AQUÍ!
 
-    print('FLUTTER DEBUG API: updateProcess - StatusCode: ${response.statusCode}');
-    print('FLUTTER DEBUG API: updateProcess - Response Body: ${response.body}');
+    try {
+      // Usamos updatedProcessData.toMap() para el cuerpo de la solicitud PUT.
+      // Este cuerpo incluirá el *nuevo* nombre del proceso (si se cambió en la UI).
+      final Map<String, dynamic> bodyToSend = updatedProcessData.toMap();
+      print('FLUTTER DEBUG API: updateProcess - Enviando datos para actualizar proceso: ${jsonEncode(bodyToSend)} a $url');
 
-    if (response.statusCode == 200) {
-      // ¡CRÍTICO! Parsear la respuesta del backend para obtener el objeto actualizado
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
-      final Process updatedProcess = Process.fromJson(responseData); // <-- ¡Parsear el JSON devuelto!
-      
-      print('FLUTTER DEBUG API: updateProcess - Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente.');
-      return updatedProcess; // <-- ¡DEVOLVER EL OBJETO ACTUALIZADO DEL BACKEND!
-    } else if (response.statusCode == 404) {
-      print('FLUTTER ERROR API: updateProcess - Proceso "${process.nombre_proceso}" no encontrado (404 Not Found).');
-      return null;
-    } else {
-      print('FLUTTER ERROR API: updateProcess - Error al actualizar proceso: ${response.statusCode} - ${response.body}');
+      final response = await http.put(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(bodyToSend),
+      );
+
+      print('FLUTTER DEBUG API: updateProcess - StatusCode: ${response.statusCode}');
+      print('FLUTTER DEBUG API: updateProcess - Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final Process processFromBackend = Process.fromJson(responseData); 
+        
+        print('FLUTTER DEBUG API: updateProcess - Proceso "${processFromBackend.nombre_proceso}" actualizado exitosamente.');
+        return processFromBackend; 
+      } else if (response.statusCode == 404) {
+        print('FLUTTER ERROR API: updateProcess - Proceso "${originalProcessName}" no encontrado (404 Not Found).'); // Usamos originalProcessName aquí
+        return null;
+      } else {
+        print('FLUTTER ERROR API: updateProcess - Error al actualizar proceso: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('FLUTTER ERROR API: updateProcess - Excepción al actualizar proceso: $e');
       return null;
     }
-  } catch (e) {
-    print('FLUTTER ERROR API: updateProcess - Excepción al actualizar proceso: $e');
-    return null;
   }
-}
   /// Elimina un proceso (colección/documento) específico del backend.
   /// `processName` es el identificador del proceso a eliminar.
   /// Devuelve `true` si la eliminación fue exitosa, `false` en caso contrario.

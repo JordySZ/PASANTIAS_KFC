@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:login_app/user/home_page.dart';
-import 'package:login_app/user/tabla/home_screen.dart';
-import 'package:login_app/user/cronograma.dart';
-import 'package:login_app/user/user.dart';
+
+import 'package:login_app/super%20usario/tabla/home_screen.dart';
+import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
-import 'package:login_app/models/process.dart';
-import 'package:login_app/services/api_service.dart' show GraficaConfiguracion;
-import 'package:login_app/user/home_page.dart';
+
 
 class PanelTrello extends StatefulWidget {
   final String? processName;

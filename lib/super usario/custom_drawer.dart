@@ -14,7 +14,6 @@ class CustomDrawer extends StatelessWidget {
   final List<String> _titles = [
     'Inicio',
     'Usuarios',
-    'Procesos',
     'Crear nuevo procesos',
     'Cerrar sesión', // Nuevo ítem
   ];

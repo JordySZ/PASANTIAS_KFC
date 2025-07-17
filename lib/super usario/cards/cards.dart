@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:login_app/user/cronograma.dart';
-import 'package:login_app/user/home_page.dart';
-import 'package:login_app/user/panel/panel_graficas.dart';
-import 'package:login_app/user/tabla/home_screen.dart';
+import 'package:login_app/scrum%20user/scrum_user.dart';
+import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:login_app/super%20usario/home_page.dart';
+import 'package:login_app/super%20usario/panel/panel_graficas.dart';
+import 'package:login_app/super%20usario/tabla/home_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
-import 'package:login_app/scrum user/scrum_user.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 class TableroScreen extends StatefulWidget {
   final String? processName;
@@ -68,6 +69,276 @@ class _TableroScreenState extends State<TableroScreen> {
     super.dispose();
   }
 
+Future<void> _mostrarDialogoEditarProceso(BuildContext context) async {
+  if (_currentProcessDetails == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No hay un proceso cargado para editar.'),
+      ),
+    );
+    return;
+  }
+
+  // Precargar los controladores con los datos actuales del proceso
+  _processNameController.text = _currentProcessDetails!.nombre_proceso;
+  _selectedStartDate = _currentProcessDetails!.startDate;
+  _startDateController.text = _selectedStartDate != null
+      ? DateFormat('dd/MM/yyyy').format(_selectedStartDate!)
+      : '';
+  _selectedEndDate = _currentProcessDetails!.endDate;
+  _endDateController.text = _selectedEndDate != null
+      ? DateFormat('dd/MM/yyyy').format(_selectedEndDate!)
+      : '';
+  _selectedEstado = _currentProcessDetails!.estado;
+
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Editar Proceso'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _processNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Proceso',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: _selectedStartDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _selectedStartDate = picked;
+                          _startDateController.text =
+                              DateFormat('dd/MM/yyyy').format(picked);
+                        });
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _startDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de Inicio',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: _selectedEndDate ??
+                            _selectedStartDate ??
+                            DateTime.now(),
+                        firstDate:
+                            _selectedStartDate ?? DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _selectedEndDate = picked;
+                          _endDateController.text =
+                              DateFormat('dd/MM/yyyy').format(picked);
+                        });
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _endDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de Fin',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedEstado,
+                    decoration: const InputDecoration(
+                      labelText: 'Estado del Proceso',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: <String>['echo', 'en proceso', 'pendiente']
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedEstado = newValue;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, selecciona un estado.';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+             TextButton(
+  child: const Text('Guardar Cambios'),
+  onPressed: () async {
+     Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) =>  DashboardPage()),
+              );
+    final String name = _processNameController.text.trim();
+
+    // --- Validaciones ---
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, ingresa un nombre para el proceso.'),
+        ),
+      );
+      return;
+    }
+    if (_selectedStartDate == null) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona una fecha de inicio.'),
+        ),
+      );
+      return;
+    }
+    if (_selectedEndDate == null) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona una fecha de fin.'),
+        ),
+      );
+      return;
+    }
+    if (_selectedEndDate!.isBefore(_selectedStartDate!)) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('La fecha de fin no puede ser anterior a la fecha de inicio.'),
+        ),
+      );
+      return;
+    }
+    if (_selectedEstado == null || _selectedEstado!.isEmpty) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona un estado para el proceso.'),
+        ),
+      );
+      return;
+    }
+
+                  await _updateProcessInBackend(
+                    name,
+                    _selectedStartDate!,
+                    _selectedEndDate!,
+                    _selectedEstado!,
+                  );
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<void> _updateProcessInBackend(
+  String nombre_proceso, // <-- Este es el nuevo nombre que el usuario ingresó
+  DateTime startDate,
+  DateTime endDate,
+  String estado,
+) async {
+  print(
+      'FLUTTER DEBUG TABLERO: _updateProcessInBackend llamado con nombre: $nombre_proceso, inicio: $startDate, fin: $endDate, estado: $estado');
+  if (_currentProcessDetails == null || _currentProcessCollectionName == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No hay un proceso válido para actualizar.'),
+      ),
+    );
+    return;
+  }
+
+  // Captura el nombre original del proceso antes de crear el nuevo objeto Process
+  // Este es el nombre que tu backend necesita en la URL para encontrar el proceso actual
+  final String originalProcessName = _currentProcessDetails!.nombre_proceso; // Correcto, este es el nombre ANTERIOR
+
+  try {
+    final Process processDataToSend = _currentProcessDetails!.copyWith(
+      nombre_proceso: nombre_proceso, // Este es el nuevo nombre
+      startDate: startDate,
+      endDate: endDate,
+      estado: estado,
+    );
+
+    // ¡¡¡EL CAMBIO CRÍTICO ESTÁ AQUÍ!!!
+    // Ahora la llamada a _apiService.updateProcess debe coincidir con la nueva firma:
+    // Future<Process?> updateProcess(String originalProcessName, Process updatedProcessData)
+    final Process? updatedProcess = await _apiService.updateProcess(
+      originalProcessName, // <-- ¡Pasa el nombre original como primer argumento!
+      processDataToSend,   // <-- ¡Pasa el objeto Process actualizado como segundo argumento!
+    );
+
+    if (updatedProcess != null) {
+      setState(() {
+        _currentProcessDetails = updatedProcess; // Actualiza el estado local con el objeto devuelto por el backend
+        // También actualiza _currentProcessCollectionName si lo usas para el AppBar
+        _currentProcessCollectionName = updatedProcess.nombre_proceso;
+      });
+      print(
+          'FLUTTER DEBUG TABLERO: Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente en backend.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente.'),
+        ),
+      );
+    } else {
+      print(
+          'FLUTTER ERROR TABLERO: _updateProcessInBackend - _apiService.updateProcess devolvió null.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('actualizado exitosamente'),
+        ),
+      );
+    }
+  } catch (e) {
+    print(
+        'FLUTTER ERROR TABLERO: _updateProcessInBackend - Excepción al actualizar proceso: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error de conexión al actualizar el proceso: ${e.toString()}'),
+      ),
+    );
+  }
+}
   // Nueva función para cargar los detalles del proceso (incluido el estado)
   Future<void> _loadProcessDetails() async {
     if (_currentProcessCollectionName == null) return;
@@ -420,217 +691,7 @@ class _TableroScreenState extends State<TableroScreen> {
     );
   }
 
-  // Nueva función para mostrar el diálogo de edición del proceso
-  Future<void> _mostrarDialogoEditarProceso(
-      BuildContext context, Process processToEdit) async {
-    _processNameController.text = processToEdit.nombre_proceso;
-    _selectedStartDate = processToEdit.startDate;
-    _startDateController.text =
-        DateFormat('dd/MM/yyyy').format(processToEdit.startDate);
-    _selectedEndDate = processToEdit.endDate;
-    _endDateController.text =
-        DateFormat('dd/MM/yyyy').format(processToEdit.endDate);
-    _selectedEstado = processToEdit.estado; // Precarga el estado actual
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Editar Proceso'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _processNameController,
-                      decoration: const InputDecoration(
-                        hintText: "Nombre del Proceso (Ej. Proyecto X)",
-                        labelText: 'Nombre del Proceso',
-                      ),
-                      autofocus: true,
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: _selectedStartDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedStartDate = picked;
-                            _startDateController.text =
-                                DateFormat('dd/MM/yyyy').format(picked);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _startDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Fecha de Inicio',
-                            hintText: 'Selecciona la fecha de inicio',
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: _selectedEndDate ??
-                              _selectedStartDate ??
-                              DateTime.now(),
-                          firstDate: _selectedStartDate ?? DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedEndDate = picked;
-                            _endDateController.text =
-                                DateFormat('dd/MM/yyyy').format(picked);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _endDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Fecha de Fin',
-                            hintText: 'Selecciona la fecha de fin',
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedEstado,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado del Proceso',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: <String>['echo', 'en proceso', 'pendiente']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedEstado = newValue;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecciona un estado.';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancelar'),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-                TextButton(
-                  child: const Text('Guardar Cambios'),
-                  onPressed: () async {
-                    final String name = _processNameController.text.trim();
-
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, ingresa un nombre para el proceso.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedStartDate == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona una fecha de inicio.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEndDate == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona una fecha de fin.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEndDate!.isBefore(_selectedStartDate!)) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'La fecha de fin no puede ser anterior a la fecha de inicio.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEstado == null || _selectedEstado!.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona un estado para el proceso.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-
-                    // Actualizar el objeto Process con los nuevos datos
-                    final Process updatedProcess = processToEdit.copyWith(
-                      name: name,
-                      startDate: _selectedStartDate,
-                      endDate: _selectedEndDate,
-                      estado: _selectedEstado, // Actualiza el estado
-                    );
-
-                    await _apiService.updateProcess(updatedProcess);
-
-                    setState(() {
-                      _currentProcessDetails = updatedProcess;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Proceso actualizado exitosamente.'),
-                      ),
-                    );
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
+  
   Future<void> _saveProcessCollectionToBackend(
   String nombre_proceso,
   DateTime startDate,
@@ -657,7 +718,7 @@ class _TableroScreenState extends State<TableroScreen> {
         // Asigna el objeto Process completo a _currentProcessDetails.
         // Asegúrate de que `copyWith` mantenga el ID si tu modelo `Process` lo tiene
         // y tu backend lo retorna, para futuras actualizaciones.
-        _currentProcessDetails = newProcessData.copyWith(name: createdCollectionName);
+        _currentProcessDetails = newProcessData.copyWith(nombre_proceso: createdCollectionName);
       });
 
       // *** AÑADIDO: Guardar el nombre del proceso en SharedPreferences ***
@@ -1216,108 +1277,110 @@ class _TableroScreenState extends State<TableroScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF003C6C),
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => DashboardPage()),
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: const Color(0xFF003C6C),
+    appBar: AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => DashboardPage()),
+          );
+        },
+      ),
+      title: GestureDetector(
+        onTap: () {
+          // Asegúrate de que _currentProcessDetails esté cargado antes de intentar editar
+          if (_currentProcessDetails != null) {
+            _mostrarDialogoEditarProceso(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Por favor, crea o selecciona un proceso primero para editar.',
+                ),
+              ),
             );
+          }
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              // **¡EL CAMBIO CLAVE AQUÍ!**
+              // Prioriza _currentProcessCollectionName que es la variable de estado.
+              // widget.processName solo se usaría si _currentProcessCollectionName es nulo (ej. al inicio)
+              _currentProcessCollectionName ?? widget.processName ?? 'Mi Tablero de Trello',
+              style: const TextStyle(color: Colors.black),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.edit, size: 20, color: Colors.black54),
+          ],
+        ),
+      ),
+      backgroundColor: const Color.fromARGB(221, 255, 255, 255),
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.menu),
+          onSelected: (String value) {
+            if (_currentProcessCollectionName == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Por favor, crea o selecciona un proceso antes de navegar.',
+                  ),
+                ),
+              );
+              return;
+            }
+            if (value == 'cronograma') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TimelineScreen(
+                    processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            } else if (value == 'panel') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PanelTrello(
+                    processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            } else if (value == 'tablas') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => KanbanTaskManager(
+                    processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            }
           },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'cronograma',
+              child: Text('Cronograma'),
+            ),
+            const PopupMenuItem<String>(
+              value: 'tablas',
+              child: Text('Tablas'),
+            ),
+            const PopupMenuItem<String>(
+              value: 'panel',
+              child: Text('Panel'),
+            ),
+          ],
         ),
-       title: GestureDetector(
-          onTap: () {
-            if (_currentProcessDetails != null) { // <-- ¡Aquí es donde debes usar la variable de estado!
-    _mostrarDialogoEditarProceso(context, _currentProcessDetails!); // Pasas el objeto Process
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Por favor, crea o selecciona un proceso primero para editar.',
-        ),
-      ),
-    );
-  }
-},
-          child: Row( // <-- ESTO ES LO QUE DEBES AÑADIR O MODIFICAR
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.processName ??
-                    _currentProcessCollectionName ??
-                    'Mi Tablero de Trello',
-                style: const TextStyle(color: Colors.black), // Asegura que el texto sea visible
-              ),
-              const SizedBox(width: 8), // Espacio entre el texto y el icono
-              const Icon(Icons.edit, size: 20, color: Colors.black54), // Icono de edición
-            ],
-          ),
-        ),
-        backgroundColor: const Color.fromARGB(221, 255, 255, 255),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.menu),
-            onSelected: (String value) {
-              if (_currentProcessCollectionName == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Por favor, crea o selecciona un proceso antes de navegar.',
-                    ),
-                  ),
-                );
-                return;
-              }
-              if (value == 'cronograma') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TimelineScreen(
-                      processName: _currentProcessCollectionName,
-                    ),
-                  ),
-                );
-              } else if (value == 'panel') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PanelTrello(
-                      processName: _currentProcessCollectionName,
-                    ),
-                  ),
-                );
-              } else if (value == 'tablas') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => KanbanTaskManager(
-                      processName: _currentProcessCollectionName,
-                    ),
-                  ),
-                );
-              }
-            },
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem<String>(
-                value: 'cronograma',
-                child: Text('Cronograma'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'tablas',
-                child: Text('Tablas'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'panel',
-                child: Text('Panel'),
-              ),
-            ],
-          ),
-        ],
-      ),
+      ],
+    ),
       body: Stack(
         children: [
           GestureDetector(

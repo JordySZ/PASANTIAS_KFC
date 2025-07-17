@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:login_app/user/user.dart';
-import 'package:login_app/user/cronograma.dart';
-import 'package:login_app/user/panel/panel_graficas.dart';
+import 'package:login_app/super%20usario/cards/cards.dart';
+import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:login_app/super%20usario/panel/panel_graficas.dart';
 
 class KanbanTaskManager extends StatefulWidget {
   final String? processName;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:login_app/user/models/task.dart';
+import 'package:login_app/super%20usario/models/task.dart';
 import 'dart:ui' as ui;
 
 class TimelinePainter extends CustomPainter {
