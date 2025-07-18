@@ -11,6 +11,7 @@ import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+
 class TableroScreen extends StatefulWidget {
   final String? processName;
 
@@ -45,7 +46,8 @@ class _TableroScreenState extends State<TableroScreen> {
   void initState() {
     super.initState();
     print(
-        'FLUTTER DEBUG TABLERO: initState - widget.processName: ${widget.processName}');
+      'FLUTTER DEBUG TABLERO: initState - widget.processName: ${widget.processName}',
+    );
 
     if (widget.processName != null) {
       _currentProcessCollectionName = widget.processName;
@@ -69,299 +71,329 @@ class _TableroScreenState extends State<TableroScreen> {
     super.dispose();
   }
 
-Future<void> _mostrarDialogoEditarProceso(BuildContext context) async {
-  if (_currentProcessDetails == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No hay un proceso cargado para editar.'),
-      ),
+  Future<void> _mostrarDialogoEditarProceso(BuildContext context) async {
+    if (_currentProcessDetails == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay un proceso cargado para editar.')),
+      );
+      return;
+    }
+
+    // Precargar los controladores con los datos actuales del proceso
+    _processNameController.text = _currentProcessDetails!.nombre_proceso;
+    _selectedStartDate = _currentProcessDetails!.startDate;
+    _startDateController.text =
+        _selectedStartDate != null
+            ? DateFormat('dd/MM/yyyy').format(_selectedStartDate!)
+            : '';
+    _selectedEndDate = _currentProcessDetails!.endDate;
+    _endDateController.text =
+        _selectedEndDate != null
+            ? DateFormat('dd/MM/yyyy').format(_selectedEndDate!)
+            : '';
+    _selectedEstado = _currentProcessDetails!.estado;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Editar Proceso'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _processNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre del Proceso',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: _selectedStartDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedStartDate = picked;
+                            _startDateController.text = DateFormat(
+                              'dd/MM/yyyy',
+                            ).format(picked);
+                          });
+                        }
+                      },
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: _startDateController,
+                          decoration: const InputDecoration(
+                            labelText: 'Fecha de Inicio',
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate:
+                              _selectedEndDate ??
+                              _selectedStartDate ??
+                              DateTime.now(),
+                          firstDate: _selectedStartDate ?? DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedEndDate = picked;
+                            _endDateController.text = DateFormat(
+                              'dd/MM/yyyy',
+                            ).format(picked);
+                          });
+                        }
+                      },
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: _endDateController,
+                          decoration: const InputDecoration(
+                            labelText: 'Fecha de Fin',
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedEstado,
+                      decoration: const InputDecoration(
+                        labelText: 'Estado del Proceso',
+                        border: OutlineInputBorder(),
+                      ),
+                      items:
+                          <String>[
+                            'echo',
+                            'en proceso',
+                            'pendiente',
+                          ].map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedEstado = newValue;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, selecciona un estado.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancelar'),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+                TextButton(
+                  child: const Text('Guardar Cambios'),
+                  onPressed: () async {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => DashboardPage()),
+                    );
+                    final String name = _processNameController.text.trim();
+
+                    // --- Validaciones ---
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Por favor, ingresa un nombre para el proceso.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedStartDate == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Por favor, selecciona una fecha de inicio.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedEndDate == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Por favor, selecciona una fecha de fin.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedEndDate!.isBefore(_selectedStartDate!)) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'La fecha de fin no puede ser anterior a la fecha de inicio.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedEstado == null || _selectedEstado!.isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Por favor, selecciona un estado para el proceso.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    await _updateProcessInBackend(
+                      name,
+                      _selectedStartDate!,
+                      _selectedEndDate!,
+                      _selectedEstado!,
+                    );
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-    return;
   }
 
-  // Precargar los controladores con los datos actuales del proceso
-  _processNameController.text = _currentProcessDetails!.nombre_proceso;
-  _selectedStartDate = _currentProcessDetails!.startDate;
-  _startDateController.text = _selectedStartDate != null
-      ? DateFormat('dd/MM/yyyy').format(_selectedStartDate!)
-      : '';
-  _selectedEndDate = _currentProcessDetails!.endDate;
-  _endDateController.text = _selectedEndDate != null
-      ? DateFormat('dd/MM/yyyy').format(_selectedEndDate!)
-      : '';
-  _selectedEstado = _currentProcessDetails!.estado;
+  Future<void> _updateProcessInBackend(
+    String nombre_proceso, // <-- Este es el nuevo nombre que el usuario ingresó
+    DateTime startDate,
+    DateTime endDate,
+    String estado,
+  ) async {
+    print(
+      'FLUTTER DEBUG TABLERO: _updateProcessInBackend llamado con nombre: $nombre_proceso, inicio: $startDate, fin: $endDate, estado: $estado',
+    );
+    if (_currentProcessDetails == null ||
+        _currentProcessCollectionName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay un proceso válido para actualizar.'),
+        ),
+      );
+      return;
+    }
 
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext dialogContext) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Editar Proceso'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _processNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del Proceso',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InkWell(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: dialogContext,
-                        initialDate: _selectedStartDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _selectedStartDate = picked;
-                          _startDateController.text =
-                              DateFormat('dd/MM/yyyy').format(picked);
-                        });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: _startDateController,
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha de Inicio',
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InkWell(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: dialogContext,
-                        initialDate: _selectedEndDate ??
-                            _selectedStartDate ??
-                            DateTime.now(),
-                        firstDate:
-                            _selectedStartDate ?? DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _selectedEndDate = picked;
-                          _endDateController.text =
-                              DateFormat('dd/MM/yyyy').format(picked);
-                        });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: _endDateController,
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha de Fin',
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedEstado,
-                    decoration: const InputDecoration(
-                      labelText: 'Estado del Proceso',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: <String>['echo', 'en proceso', 'pendiente']
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedEstado = newValue;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, selecciona un estado.';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
+    // Captura el nombre original del proceso antes de crear el nuevo objeto Process
+    // Este es el nombre que tu backend necesita en la URL para encontrar el proceso actual
+    final String originalProcessName =
+        _currentProcessDetails!
+            .nombre_proceso; // Correcto, este es el nombre ANTERIOR
+
+    try {
+      final Process processDataToSend = _currentProcessDetails!.copyWith(
+        nombre_proceso: nombre_proceso, // Este es el nuevo nombre
+        startDate: startDate,
+        endDate: endDate,
+        estado: estado,
+      );
+
+      // ¡¡¡EL CAMBIO CRÍTICO ESTÁ AQUÍ!!!
+      // Ahora la llamada a _apiService.updateProcess debe coincidir con la nueva firma:
+      // Future<Process?> updateProcess(String originalProcessName, Process updatedProcessData)
+      final Process? updatedProcess = await _apiService.updateProcess(
+        originalProcessName, // <-- ¡Pasa el nombre original como primer argumento!
+        processDataToSend, // <-- ¡Pasa el objeto Process actualizado como segundo argumento!
+      );
+
+      if (updatedProcess != null) {
+        setState(() {
+          _currentProcessDetails =
+              updatedProcess; // Actualiza el estado local con el objeto devuelto por el backend
+          // También actualiza _currentProcessCollectionName si lo usas para el AppBar
+          _currentProcessCollectionName = updatedProcess.nombre_proceso;
+        });
+        print(
+          'FLUTTER DEBUG TABLERO: Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente en backend.',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente.',
             ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancelar'),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-             TextButton(
-  child: const Text('Guardar Cambios'),
-  onPressed: () async {
-     Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) =>  DashboardPage()),
-              );
-    final String name = _processNameController.text.trim();
-
-    // --- Validaciones ---
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresa un nombre para el proceso.'),
-        ),
-      );
-      return;
-    }
-    if (_selectedStartDate == null) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecciona una fecha de inicio.'),
-        ),
-      );
-      return;
-    }
-    if (_selectedEndDate == null) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecciona una fecha de fin.'),
-        ),
-      );
-      return;
-    }
-    if (_selectedEndDate!.isBefore(_selectedStartDate!)) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('La fecha de fin no puede ser anterior a la fecha de inicio.'),
-        ),
-      );
-      return;
-    }
-    if (_selectedEstado == null || _selectedEstado!.isEmpty) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecciona un estado para el proceso.'),
-        ),
-      );
-      return;
-    }
-
-                  await _updateProcessInBackend(
-                    name,
-                    _selectedStartDate!,
-                    _selectedEndDate!,
-                    _selectedEstado!,
-                  );
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
-
-Future<void> _updateProcessInBackend(
-  String nombre_proceso, // <-- Este es el nuevo nombre que el usuario ingresó
-  DateTime startDate,
-  DateTime endDate,
-  String estado,
-) async {
-  print(
-      'FLUTTER DEBUG TABLERO: _updateProcessInBackend llamado con nombre: $nombre_proceso, inicio: $startDate, fin: $endDate, estado: $estado');
-  if (_currentProcessDetails == null || _currentProcessCollectionName == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No hay un proceso válido para actualizar.'),
-      ),
-    );
-    return;
-  }
-
-  // Captura el nombre original del proceso antes de crear el nuevo objeto Process
-  // Este es el nombre que tu backend necesita en la URL para encontrar el proceso actual
-  final String originalProcessName = _currentProcessDetails!.nombre_proceso; // Correcto, este es el nombre ANTERIOR
-
-  try {
-    final Process processDataToSend = _currentProcessDetails!.copyWith(
-      nombre_proceso: nombre_proceso, // Este es el nuevo nombre
-      startDate: startDate,
-      endDate: endDate,
-      estado: estado,
-    );
-
-    // ¡¡¡EL CAMBIO CRÍTICO ESTÁ AQUÍ!!!
-    // Ahora la llamada a _apiService.updateProcess debe coincidir con la nueva firma:
-    // Future<Process?> updateProcess(String originalProcessName, Process updatedProcessData)
-    final Process? updatedProcess = await _apiService.updateProcess(
-      originalProcessName, // <-- ¡Pasa el nombre original como primer argumento!
-      processDataToSend,   // <-- ¡Pasa el objeto Process actualizado como segundo argumento!
-    );
-
-    if (updatedProcess != null) {
-      setState(() {
-        _currentProcessDetails = updatedProcess; // Actualiza el estado local con el objeto devuelto por el backend
-        // También actualiza _currentProcessCollectionName si lo usas para el AppBar
-        _currentProcessCollectionName = updatedProcess.nombre_proceso;
-      });
+          ),
+        );
+      } else {
+        print(
+          'FLUTTER ERROR TABLERO: _updateProcessInBackend - _apiService.updateProcess devolvió null.',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('actualizado exitosamente')),
+        );
+      }
+    } catch (e) {
       print(
-          'FLUTTER DEBUG TABLERO: Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente en backend.');
+        'FLUTTER ERROR TABLERO: _updateProcessInBackend - Excepción al actualizar proceso: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Proceso "${updatedProcess.nombre_proceso}" actualizado exitosamente.'),
-        ),
-      );
-    } else {
-      print(
-          'FLUTTER ERROR TABLERO: _updateProcessInBackend - _apiService.updateProcess devolvió null.');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('actualizado exitosamente'),
+          content: Text(
+            'Error de conexión al actualizar el proceso: ${e.toString()}',
+          ),
         ),
       );
     }
-  } catch (e) {
-    print(
-        'FLUTTER ERROR TABLERO: _updateProcessInBackend - Excepción al actualizar proceso: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error de conexión al actualizar el proceso: ${e.toString()}'),
-      ),
-    );
   }
-}
+
   // Nueva función para cargar los detalles del proceso (incluido el estado)
   Future<void> _loadProcessDetails() async {
     if (_currentProcessCollectionName == null) return;
     try {
-      final Process? process =
-          await _apiService.getProcessByName(_currentProcessCollectionName!);
+      final Process? process = await _apiService.getProcessByName(
+        _currentProcessCollectionName!,
+      );
       setState(() {
         _currentProcessDetails = process;
       });
       print(
-          'FLUTTER DEBUG TABLERO: Detalles del proceso cargados: ${_currentProcessDetails?.nombre_proceso}, Estado: ${_currentProcessDetails?.estado}');
+        'FLUTTER DEBUG TABLERO: Detalles del proceso cargados: ${_currentProcessDetails?.nombre_proceso}, Estado: ${_currentProcessDetails?.estado}',
+      );
     } catch (e) {
-      print(
-          'FLUTTER ERROR TABLERO: Error al cargar detalles del proceso: $e');
+      print('FLUTTER ERROR TABLERO: Error al cargar detalles del proceso: $e');
     }
   }
 
   Future<void> _loadListsFromBackend() async {
     print(
-        'FLUTTER DEBUG TABLERO: _loadListsFromBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: _loadListsFromBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       print(
-          'FLUTTER DEBUG TABLERO: _loadListsFromBackend - No hay proceso seleccionado/creado. No se cargan listas.');
+        'FLUTTER DEBUG TABLERO: _loadListsFromBackend - No hay proceso seleccionado/creado. No se cargan listas.',
+      );
       setState(() {
         listas = [];
         tarjetasPorLista = [];
@@ -384,7 +416,8 @@ Future<void> _updateProcessInBackend(
         for (int i = 0; i < loadedLists.length; i++) {
           listas.add(loadedLists[i]);
           tarjetasPorLista.add(
-              []); // Inicializa una lista vacía de tarjetas para cada nueva lista
+            [],
+          ); // Inicializa una lista vacía de tarjetas para cada nueva lista
           keysAgregarTarjeta.add(GlobalKey());
           _listIdToIndexMap[loadedLists[i].id] =
               i; // Mapea el ID de la lista a su índice
@@ -396,10 +429,12 @@ Future<void> _updateProcessInBackend(
       }
 
       print(
-          'FLUTTER DEBUG TABLERO: Listas cargadas exitosamente del backend para el proceso: $_currentProcessCollectionName. Cantidad: ${listas.length}');
+        'FLUTTER DEBUG TABLERO: Listas cargadas exitosamente del backend para el proceso: $_currentProcessCollectionName. Cantidad: ${listas.length}',
+      );
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: _loadListsFromBackend - Error al cargar listas del backend para $_currentProcessCollectionName: $e');
+        'FLUTTER ERROR TABLERO: _loadListsFromBackend - Error al cargar listas del backend para $_currentProcessCollectionName: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al cargar las listas: ${e.toString()}')),
       );
@@ -408,7 +443,8 @@ Future<void> _updateProcessInBackend(
 
   Future<void> _createDefaultListIfEmpty() async {
     print(
-        'FLUTTER DEBUG TABLERO: _createDefaultListIfEmpty - Intentando crear lista por defecto.');
+      'FLUTTER DEBUG TABLERO: _createDefaultListIfEmpty - Intentando crear lista por defecto.',
+    );
     final ListaDatos defaultListTemp = ListaDatos(
       id: '',
       titulo: 'Lista de tareas',
@@ -426,23 +462,28 @@ Future<void> _updateProcessInBackend(
           _listIdToIndexMap[createdList.id] = listas.length - 1;
         });
         print(
-            'FLUTTER DEBUG TABLERO: _createDefaultListIfEmpty - Lista por defecto creada en backend con ID: ${createdList.id}');
+          'FLUTTER DEBUG TABLERO: _createDefaultListIfEmpty - Lista por defecto creada en backend con ID: ${createdList.id}',
+        );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: _createDefaultListIfEmpty - Falló la creación de la lista por defecto.');
+          'FLUTTER ERROR TABLERO: _createDefaultListIfEmpty - Falló la creación de la lista por defecto.',
+        );
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: _createDefaultListIfEmpty - Excepción al crear lista por defecto: $e');
+        'FLUTTER ERROR TABLERO: _createDefaultListIfEmpty - Excepción al crear lista por defecto: $e',
+      );
     }
   }
 
   Future<void> _loadCardsFromBackend() async {
     print(
-        'FLUTTER DEBUG TABLERO: _loadCardsFromBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: _loadCardsFromBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       print(
-          'FLUTTER DEBUG TABLERO: _loadCardsFromBackend - No hay proceso seleccionado/creado. No se cargan tarjetas.');
+        'FLUTTER DEBUG TABLERO: _loadCardsFromBackend - No hay proceso seleccionado/creado. No se cargan tarjetas.',
+      );
       setState(() {
         tarjetasPorLista = List.generate(listas.length, (_) => []);
       });
@@ -453,10 +494,7 @@ Future<void> _updateProcessInBackend(
         _currentProcessCollectionName!,
       );
       setState(() {
-        tarjetasPorLista = List.generate(
-          listas.length,
-          (_) => [],
-        );
+        tarjetasPorLista = List.generate(listas.length, (_) => []);
 
         for (var card in loadedCards) {
           final int? listIndex = _listIdToIndexMap[card.idLista];
@@ -464,22 +502,25 @@ Future<void> _updateProcessInBackend(
             tarjetasPorLista[listIndex].add(card);
           } else {
             print(
-                'FLUTTER WARNING TABLERO: Tarjeta "${card.titulo}" con idLista "${card.idLista}" no tiene una lista correspondiente en el frontend. Asignando a la primera lista si existe.');
+              'FLUTTER WARNING TABLERO: Tarjeta "${card.titulo}" con idLista "${card.idLista}" no tiene una lista correspondiente en el frontend. Asignando a la primera lista si existe.',
+            );
             if (tarjetasPorLista.isNotEmpty) {
-              tarjetasPorLista[0].add(
-                  card);
+              tarjetasPorLista[0].add(card);
             } else {
               print(
-                  'FLUTTER WARNING TABLERO: No hay listas disponibles para asignar la tarjeta huérfana.');
+                'FLUTTER WARNING TABLERO: No hay listas disponibles para asignar la tarjeta huérfana.',
+              );
             }
           }
         }
       });
       print(
-          'FLUTTER DEBUG TABLERO: Tarjetas cargadas exitosamente del backend para el proceso: $_currentProcessCollectionName. Cantidad: ${loadedCards.length}');
+        'FLUTTER DEBUG TABLERO: Tarjetas cargadas exitosamente del backend para el proceso: $_currentProcessCollectionName. Cantidad: ${loadedCards.length}',
+      );
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: _loadCardsFromBackend - Error al cargar tarjetas del backend para $_currentProcessCollectionName: $e');
+        'FLUTTER ERROR TABLERO: _loadCardsFromBackend - Error al cargar tarjetas del backend para $_currentProcessCollectionName: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al cargar las tarjetas: ${e.toString()}'),
@@ -528,8 +569,9 @@ Future<void> _updateProcessInBackend(
                         if (picked != null) {
                           setState(() {
                             _selectedStartDate = picked;
-                            _startDateController.text =
-                                DateFormat('dd/MM/yyyy').format(picked);
+                            _startDateController.text = DateFormat(
+                              'dd/MM/yyyy',
+                            ).format(picked);
                           });
                         }
                       },
@@ -549,18 +591,19 @@ Future<void> _updateProcessInBackend(
                       onTap: () async {
                         final DateTime? picked = await showDatePicker(
                           context: dialogContext,
-                          initialDate: _selectedEndDate ??
+                          initialDate:
+                              _selectedEndDate ??
                               _selectedStartDate ??
                               DateTime.now(),
-                          firstDate:
-                              _selectedStartDate ?? DateTime(2000),
+                          firstDate: _selectedStartDate ?? DateTime(2000),
                           lastDate: DateTime(2101),
                         );
                         if (picked != null) {
                           setState(() {
                             _selectedEndDate = picked;
-                            _endDateController.text =
-                                DateFormat('dd/MM/yyyy').format(picked);
+                            _endDateController.text = DateFormat(
+                              'dd/MM/yyyy',
+                            ).format(picked);
                           });
                         }
                       },
@@ -582,13 +625,17 @@ Future<void> _updateProcessInBackend(
                         labelText: 'Estado del Proceso',
                         border: OutlineInputBorder(),
                       ),
-                      items: <String>['echo', 'en proceso', 'pendiente']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
+                      items:
+                          <String>[
+                            'echo',
+                            'en proceso',
+                            'pendiente',
+                          ].map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
                       onChanged: (String? newValue) {
                         setState(() {
                           _selectedEstado = newValue;
@@ -691,72 +738,81 @@ Future<void> _updateProcessInBackend(
     );
   }
 
-  
   Future<void> _saveProcessCollectionToBackend(
-  String nombre_proceso,
-  DateTime startDate,
-  DateTime endDate,
-  String estado,
-) async {
-  print(
-      'FLUTTER DEBUG TABLERO: _saveProcessCollectionToBackend llamado con nombre: $nombre_proceso, inicio: $startDate, fin: $endDate, estado: $estado');
-  try {
-    final Process newProcessData = Process(
-      nombre_proceso: nombre_proceso,
-      startDate: startDate,
-      endDate: endDate,
-      estado: estado,
+    String nombre_proceso,
+    DateTime startDate,
+    DateTime endDate,
+    String estado,
+  ) async {
+    print(
+      'FLUTTER DEBUG TABLERO: _saveProcessCollectionToBackend llamado con nombre: $nombre_proceso, inicio: $startDate, fin: $endDate, estado: $estado',
     );
+    try {
+      final Process newProcessData = Process(
+        nombre_proceso: nombre_proceso,
+        startDate: startDate,
+        endDate: endDate,
+        estado: estado,
+      );
 
-    final String? createdCollectionName = await _apiService.createProcess(
-      newProcessData,
-    );
+      final String? createdCollectionName = await _apiService.createProcess(
+        newProcessData,
+      );
 
-    if (createdCollectionName != null) {
-      setState(() {
-        _currentProcessCollectionName = createdCollectionName;
-        // Asigna el objeto Process completo a _currentProcessDetails.
-        // Asegúrate de que `copyWith` mantenga el ID si tu modelo `Process` lo tiene
-        // y tu backend lo retorna, para futuras actualizaciones.
-        _currentProcessDetails = newProcessData.copyWith(nombre_proceso: createdCollectionName);
-      });
+      if (createdCollectionName != null) {
+        setState(() {
+          _currentProcessCollectionName = createdCollectionName;
+          // Asigna el objeto Process completo a _currentProcessDetails.
+          // Asegúrate de que `copyWith` mantenga el ID si tu modelo `Process` lo tiene
+          // y tu backend lo retorna, para futuras actualizaciones.
+          _currentProcessDetails = newProcessData.copyWith(
+            nombre_proceso: createdCollectionName,
+          );
+        });
 
-      // *** AÑADIDO: Guardar el nombre del proceso en SharedPreferences ***
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('lastProcessName', createdCollectionName); // Guarda el nombre de la colección
+        // *** AÑADIDO: Guardar el nombre del proceso en SharedPreferences ***
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'lastProcessName',
+          createdCollectionName,
+        ); // Guarda el nombre de la colección
 
+        print(
+          'FLUTTER DEBUG TABLERO: _saveProcessCollectionToBackend - Colección creada/existente y _currentProcessCollectionName actualizado a: $_currentProcessCollectionName',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Proceso "$nombre_proceso" creado o seleccionado exitosamente.',
+            ),
+          ),
+        );
+      } else {
+        print(
+          'FLUTTER ERROR TABLERO: _saveProcessCollectionToBackend - _apiService.createProcess devolvió null. El proceso NO se guardó o hubo un error inesperado.',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Error al guardar o seleccionar el proceso. Hubo un problema inesperado.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
       print(
-          'FLUTTER DEBUG TABLERO: _saveProcessCollectionToBackend - Colección creada/existente y _currentProcessCollectionName actualizado a: $_currentProcessCollectionName');
+        'FLUTTER ERROR TABLERO: _saveProcessCollectionToBackend - Excepción al guardar colección de proceso: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Proceso "$nombre_proceso" creado o seleccionado exitosamente.',
-          ),
-        ),
-      );
-    } else {
-      print(
-          'FLUTTER ERROR TABLERO: _saveProcessCollectionToBackend - _apiService.createProcess devolvió null. El proceso NO se guardó o hubo un error inesperado.');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Error al guardar o seleccionar el proceso. Hubo un problema inesperado.',
+            'Error de conexión al guardar el proceso: ${e.toString()}',
           ),
         ),
       );
     }
-  } catch (e) {
-    print(
-        'FLUTTER ERROR TABLERO: _saveProcessCollectionToBackend - Excepción al guardar colección de proceso: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Error de conexión al guardar el proceso: ${e.toString()}',
-        ),
-      ),
-    );
   }
-}
+
   void agregarListaNueva() async {
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -826,13 +882,15 @@ Future<void> _updateProcessInBackend(
           }
         });
         print(
-            'FLUTTER DEBUG TABLERO: Lista "${createdList.titulo}" creada exitosamente en backend con ID: ${createdList.id}');
+          'FLUTTER DEBUG TABLERO: Lista "${createdList.titulo}" creada exitosamente en backend con ID: ${createdList.id}',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lista "$newTitle" creada exitosamente.')),
         );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: agregarListaNueva - _apiService.createList devolvió null.');
+          'FLUTTER ERROR TABLERO: agregarListaNueva - _apiService.createList devolvió null.',
+        );
         setState(() {
           listas.removeLast();
           tarjetasPorLista.removeLast();
@@ -845,7 +903,8 @@ Future<void> _updateProcessInBackend(
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: agregarListaNueva - Excepción al crear lista: $e');
+        'FLUTTER ERROR TABLERO: agregarListaNueva - Excepción al crear lista: $e',
+      );
       setState(() {
         listas.removeLast();
         tarjetasPorLista.removeLast();
@@ -859,7 +918,8 @@ Future<void> _updateProcessInBackend(
       );
     }
     print(
-        'FLUTTER DEBUG TABLERO: Lista nueva añadida localmente. Cantidad de listas: ${listas.length}');
+      'FLUTTER DEBUG TABLERO: Lista nueva añadida localmente. Cantidad de listas: ${listas.length}',
+    );
   }
 
   // Función para editar el título de una lista
@@ -886,7 +946,8 @@ Future<void> _updateProcessInBackend(
           listas[index] = updatedList;
         });
         print(
-            'FLUTTER DEBUG TABLERO: Título de lista editado exitosamente en backend. Lista ${updatedList.id}: ${updatedList.titulo}');
+          'FLUTTER DEBUG TABLERO: Título de lista editado exitosamente en backend. Lista ${updatedList.id}: ${updatedList.titulo}',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Título de la lista actualizado a "$nuevoTitulo".'),
@@ -894,7 +955,8 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: editarTituloLista - _apiService.updateList devolvió null.');
+          'FLUTTER ERROR TABLERO: editarTituloLista - _apiService.updateList devolvió null.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error al actualizar el título de la lista.'),
@@ -903,11 +965,13 @@ Future<void> _updateProcessInBackend(
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: editarTituloLista - Excepción al actualizar título de lista: $e');
+        'FLUTTER ERROR TABLERO: editarTituloLista - Excepción al actualizar título de lista: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al actualizar el título de la lista: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al actualizar el título de la lista: ${e.toString()}',
+          ),
         ),
       );
     }
@@ -916,7 +980,8 @@ Future<void> _updateProcessInBackend(
   /// **Nueva función para eliminar una lista del backend y del frontend.**
   void _eliminarListaDelBackend(int indexLista, String listaId) async {
     print(
-        'FLUTTER DEBUG TABLERO: _eliminarListaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName, ID de lista a eliminar: $listaId');
+      'FLUTTER DEBUG TABLERO: _eliminarListaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName, ID de lista a eliminar: $listaId',
+    );
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -934,13 +999,15 @@ Future<void> _updateProcessInBackend(
     }
 
     // Muestra un diálogo de confirmación
-    bool confirmDelete = await showDialog(
+    bool confirmDelete =
+        await showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               title: const Text('Confirmar Eliminación'),
               content: Text(
-                  '¿Estás seguro de que quieres eliminar la lista "$listTitleToDelete"? Esto también eliminará todas las tarjetas dentro de ella.'),
+                '¿Estás seguro de que quieres eliminar la lista "$listTitleToDelete"? Esto también eliminará todas las tarjetas dentro de ella.',
+              ),
               actions: <Widget>[
                 TextButton(
                   child: const Text('Cancelar'),
@@ -949,7 +1016,10 @@ Future<void> _updateProcessInBackend(
                   },
                 ),
                 TextButton(
-                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                  child: const Text(
+                    'Eliminar',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onPressed: () {
                     Navigator.of(context).pop(true);
                   },
@@ -982,7 +1052,8 @@ Future<void> _updateProcessInBackend(
           }
         });
         print(
-            'FLUTTER DEBUG TABLERO: Lista eliminada exitosamente de "$_currentProcessCollectionName": $listaId');
+          'FLUTTER DEBUG TABLERO: Lista eliminada exitosamente de "$_currentProcessCollectionName": $listaId',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -992,18 +1063,21 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR API: _eliminarListaDelBackend - _apiService.deleteList devolvió false.');
+          'FLUTTER ERROR API: _eliminarListaDelBackend - _apiService.deleteList devolvió false.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al eliminar la lista.')),
         );
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR API: _eliminarListaDelBackend - Excepción al eliminar lista: $e');
+        'FLUTTER ERROR API: _eliminarListaDelBackend - Excepción al eliminar lista: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al eliminar la lista: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al eliminar la lista: ${e.toString()}',
+          ),
         ),
       );
     }
@@ -1012,7 +1086,8 @@ Future<void> _updateProcessInBackend(
   // Función para agregar una nueva tarjeta a una lista específica
   void agregarTarjeta(int indexLista, Tarjeta tarjeta) async {
     print(
-        'FLUTTER DEBUG TABLERO: agregarTarjeta llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: agregarTarjeta llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1022,13 +1097,15 @@ Future<void> _updateProcessInBackend(
         ),
       );
       print(
-          'FLUTTER DEBUG TABLERO: agregarTarjeta - No hay proceso seleccionado, no se añade tarjeta.');
+        'FLUTTER DEBUG TABLERO: agregarTarjeta - No hay proceso seleccionado, no se añade tarjeta.',
+      );
       return;
     }
 
     final String targetListId = listas[indexLista].id;
     print(
-        'FLUTTER DEBUG TABLERO: Intentando crear tarjeta con idLista: $targetListId (que debería ser el ID real de MongoDB)');
+      'FLUTTER DEBUG TABLERO: Intentando crear tarjeta con idLista: $targetListId (que debería ser el ID real de MongoDB)',
+    );
 
     final Tarjeta tarjetaConListId = tarjeta.copyWith(idLista: targetListId);
 
@@ -1043,7 +1120,8 @@ Future<void> _updateProcessInBackend(
           indiceListaEditandoTarjeta = null;
         });
         print(
-            'FLUTTER DEBUG TABLERO: Tarjeta creada exitosamente en "$_currentProcessCollectionName" para lista ${createdCard.idLista}: ${createdCard.titulo}');
+          'FLUTTER DEBUG TABLERO: Tarjeta creada exitosamente en "$_currentProcessCollectionName" para lista ${createdCard.idLista}: ${createdCard.titulo}',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1053,18 +1131,21 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: agregarTarjeta - _apiService.createCard devolvió null.');
+          'FLUTTER ERROR TABLERO: agregarTarjeta - _apiService.createCard devolvió null.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al crear la tarjeta.')),
         );
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: agregarTarjeta - Excepción al crear tarjeta: $e');
+        'FLUTTER ERROR TABLERO: agregarTarjeta - Excepción al crear tarjeta: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al crear la tarjeta: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al crear la tarjeta: ${e.toString()}',
+          ),
         ),
       );
     }
@@ -1076,7 +1157,8 @@ Future<void> _updateProcessInBackend(
       indiceListaEditandoTarjeta = indexLista;
     });
     print(
-        'FLUTTER DEBUG TABLERO: Mostrando campo de nueva tarjeta para lista $indexLista.');
+      'FLUTTER DEBUG TABLERO: Mostrando campo de nueva tarjeta para lista $indexLista.',
+    );
   }
 
   // Oculta el campo de edición/creación de tarjeta
@@ -1096,7 +1178,8 @@ Future<void> _updateProcessInBackend(
     Tarjeta tarjetaActualizada,
   ) async {
     print(
-        'FLUTTER DEBUG TABLERO: _actualizarTarjetaEnBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: _actualizarTarjetaEnBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1117,7 +1200,8 @@ Future<void> _updateProcessInBackend(
           tarjetasPorLista[indexLista][indexTarjeta] = updatedCard;
         });
         print(
-            'FLUTTER DEBUG TABLERO: Tarjeta actualizada exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}');
+          'FLUTTER DEBUG TABLERO: Tarjeta actualizada exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1127,18 +1211,21 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - _apiService.updateCard devolvió null.');
+          'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - _apiService.updateCard devolvió null.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al actualizar la tarjeta.')),
         );
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - Excepción al actualizar tarjeta: $e');
+        'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - Excepción al actualizar tarjeta: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al actualizar la tarjeta: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al actualizar la tarjeta: ${e.toString()}',
+          ),
         ),
       );
     }
@@ -1151,7 +1238,8 @@ Future<void> _updateProcessInBackend(
     EstadoTarjeta newEstado,
   ) async {
     print(
-        'FLUTTER DEBUG TABLERO: _cambiarEstadoTarjeta llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: _cambiarEstadoTarjeta llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1186,7 +1274,8 @@ Future<void> _updateProcessInBackend(
           tarjetasPorLista[indexLista][indexTarjeta] = updatedCard;
         });
         print(
-            'FLUTTER DEBUG TABLERO: Estado de tarjeta actualizado exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}');
+          'FLUTTER DEBUG TABLERO: Estado de tarjeta actualizado exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1196,7 +1285,8 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR TABLERO: _cambiarEstadoTarjeta - _apiService.updateCard devolvió null.');
+          'FLUTTER ERROR TABLERO: _cambiarEstadoTarjeta - _apiService.updateCard devolvió null.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error al cambiar el estado de la tarjeta.'),
@@ -1205,11 +1295,13 @@ Future<void> _updateProcessInBackend(
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR TABLERO: _cambiarEstadoTarjeta - Excepción al cambiar estado de tarjeta: $e');
+        'FLUTTER ERROR TABLERO: _cambiarEstadoTarjeta - Excepción al cambiar estado de tarjeta: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al cambiar el estado de la tarjeta: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al cambiar el estado de la tarjeta: ${e.toString()}',
+          ),
         ),
       );
     }
@@ -1222,7 +1314,8 @@ Future<void> _updateProcessInBackend(
     String tarjetaId,
   ) async {
     print(
-        'FLUTTER DEBUG TABLERO: _eliminarTarjetaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName');
+      'FLUTTER DEBUG TABLERO: _eliminarTarjetaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
     if (_currentProcessCollectionName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1249,7 +1342,8 @@ Future<void> _updateProcessInBackend(
           tarjetasPorLista[indexLista].removeAt(indexTarjeta);
         });
         print(
-            'FLUTTER DEBUG TABLERO: Tarjeta eliminada exitosamente de "$_currentProcessCollectionName": $tarjetaId');
+          'FLUTTER DEBUG TABLERO: Tarjeta eliminada exitosamente de "$_currentProcessCollectionName": $tarjetaId',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1259,128 +1353,137 @@ Future<void> _updateProcessInBackend(
         );
       } else {
         print(
-            'FLUTTER ERROR API: _eliminarTarjetaDelBackend - _apiService.deleteCard devolvió false.');
+          'FLUTTER ERROR API: _eliminarTarjetaDelBackend - _apiService.deleteCard devolvió false.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al eliminar la tarjeta.')),
         );
       }
     } catch (e) {
       print(
-          'FLUTTER ERROR API: _eliminarTarjetaDelBackend - Excepción al eliminar tarjeta: $e');
+        'FLUTTER ERROR API: _eliminarTarjetaDelBackend - Excepción al eliminar tarjeta: $e',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión al eliminar la tarjeta: ${e.toString()}'),
+          content: Text(
+            'Error de conexión al eliminar la tarjeta: ${e.toString()}',
+          ),
         ),
       );
     }
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: const Color(0xFF003C6C),
-    appBar: AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black),
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => DashboardPage()),
-          );
-        },
-      ),
-      title: GestureDetector(
-        onTap: () {
-          // Asegúrate de que _currentProcessDetails esté cargado antes de intentar editar
-          if (_currentProcessDetails != null) {
-            _mostrarDialogoEditarProceso(context);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Por favor, crea o selecciona un proceso primero para editar.',
-                ),
-              ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF003C6C),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => DashboardPage()),
             );
-          }
-        },
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              // **¡EL CAMBIO CLAVE AQUÍ!**
-              // Prioriza _currentProcessCollectionName que es la variable de estado.
-              // widget.processName solo se usaría si _currentProcessCollectionName es nulo (ej. al inicio)
-              _currentProcessCollectionName ?? widget.processName ?? 'Mi Tablero de Trello',
-              style: const TextStyle(color: Colors.black),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.edit, size: 20, color: Colors.black54),
-          ],
+          },
         ),
-      ),
-      backgroundColor: const Color.fromARGB(221, 255, 255, 255),
-      actions: [
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.menu),
-          onSelected: (String value) {
-            if (_currentProcessCollectionName == null) {
+        title: GestureDetector(
+          onTap: () {
+            // Asegúrate de que _currentProcessDetails esté cargado antes de intentar editar
+            if (_currentProcessDetails != null) {
+              _mostrarDialogoEditarProceso(context);
+            } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'Por favor, crea o selecciona un proceso antes de navegar.',
-                  ),
-                ),
-              );
-              return;
-            }
-            if (value == 'cronograma') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TimelineScreen(
-                    processName: _currentProcessCollectionName,
-                  ),
-                ),
-              );
-            } else if (value == 'panel') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PanelTrello(
-                    processName: _currentProcessCollectionName,
-                  ),
-                ),
-              );
-            } else if (value == 'tablas') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => KanbanTaskManager(
-                    processName: _currentProcessCollectionName,
+                    'Por favor, crea o selecciona un proceso primero para editar.',
                   ),
                 ),
               );
             }
           },
-          itemBuilder: (BuildContext context) => [
-            const PopupMenuItem<String>(
-              value: 'cronograma',
-              child: Text('Cronograma'),
-            ),
-            const PopupMenuItem<String>(
-              value: 'tablas',
-              child: Text('Tablas'),
-            ),
-            const PopupMenuItem<String>(
-              value: 'panel',
-              child: Text('Panel'),
-            ),
-          ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                // **¡EL CAMBIO CLAVE AQUÍ!**
+                // Prioriza _currentProcessCollectionName que es la variable de estado.
+                // widget.processName solo se usaría si _currentProcessCollectionName es nulo (ej. al inicio)
+                _currentProcessCollectionName ??
+                    widget.processName ??
+                    'Mi Tablero de Trello',
+                style: const TextStyle(color: Colors.black),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.edit, size: 20, color: Colors.black54),
+            ],
+          ),
         ),
-      ],
-    ),
+        backgroundColor: const Color.fromARGB(221, 255, 255, 255),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            onSelected: (String value) {
+              if (_currentProcessCollectionName == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Por favor, crea o selecciona un proceso antes de navegar.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              if (value == 'cronograma') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PlannerScreen(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'panel') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PanelTrello(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              } else if (value == 'tablas') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => KanbanTaskManager(
+                          processName: _currentProcessCollectionName,
+                        ),
+                  ),
+                );
+              }
+            },
+            itemBuilder:
+                (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'cronograma',
+                    child: Text('Cronograma'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'tablas',
+                    child: Text('Tablas'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'panel',
+                    child: Text('Panel'),
+                  ),
+                ],
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           GestureDetector(
@@ -1403,8 +1506,8 @@ Widget build(BuildContext context) {
                     id: listas[i].id,
                     titulo: listas[i].titulo,
                     tarjetas: tarjetasPorLista[i],
-                    onTituloEditado: (nuevoTitulo) =>
-                        editarTituloLista(i, nuevoTitulo),
+                    onTituloEditado:
+                        (nuevoTitulo) => editarTituloLista(i, nuevoTitulo),
                     onAgregarTarjeta: (tarjeta) => agregarTarjeta(i, tarjeta),
                     agregandoTarjeta: indiceListaEditandoTarjeta == i,
                     mostrarCampoNuevaTarjeta: () => mostrarCampoNuevaTarjeta(i),
@@ -1422,8 +1525,8 @@ Widget build(BuildContext context) {
                     onEliminarTarjeta: (indexTarjeta, tarjetaId) {
                       _eliminarTarjetaDelBackend(i, indexTarjeta, tarjetaId);
                     },
-                    onEliminarLista: (listId) =>
-                        _eliminarListaDelBackend(i, listId),
+                    onEliminarLista:
+                        (listId) => _eliminarListaDelBackend(i, listId),
                     ocultarEdicion: ocultarEdicion,
                   ),
                 BotonAgregarLista(onAgregar: agregarListaNueva),
@@ -1434,7 +1537,8 @@ Widget build(BuildContext context) {
       ),
     );
   }
-  
+
+  //
 }
 
 // Asegúrate de que BotonAgregarLista también esté definido en este archivo
@@ -1479,7 +1583,7 @@ class ListaTrello extends StatefulWidget {
   final VoidCallback ocultarEdicion;
   final Function(int index, Tarjeta tarjeta) onTarjetaActualizada;
   final Function(int index, String idTarjeta)
-      onEliminarTarjeta; // Añadido idTarjeta al eliminar
+  onEliminarTarjeta; // Añadido idTarjeta al eliminar
   final Function(int index, EstadoTarjeta nuevoEstado) onEstadoChanged;
   final ValueChanged<String> onEliminarLista; // <-- ¡ESTO ES LO NUEVO!
 
@@ -1498,7 +1602,7 @@ class ListaTrello extends StatefulWidget {
     required this.onEliminarTarjeta,
     required this.onEstadoChanged,
     required this.onEliminarLista, // <-- ¡HAZLO REQUERIDO AQUÍ!
-    
+    //
   });
 
   @override
@@ -1999,9 +2103,11 @@ class _ListaTrelloState extends State<ListaTrello> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row( // Envuelve el GestureDetector y el IconButton en un Row
+          Row(
+            // Envuelve el GestureDetector y el IconButton en un Row
             children: [
-              Expanded( // Permite que el TextField/Text ocupe el espacio restante
+              Expanded(
+                // Permite que el TextField/Text ocupe el espacio restante
                 child: GestureDetector(
                   onTap: activarEdicionTituloLista,
                   child: Padding(
@@ -2009,30 +2115,31 @@ class _ListaTrelloState extends State<ListaTrello> {
                       horizontal: 8.0,
                       vertical: 4.0,
                     ),
-                    child: editandoTituloLista
-                        ? TextField(
-                            controller: _controllerTituloLista,
-                            focusNode: _focusNodeTituloLista,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                    child:
+                        editandoTituloLista
+                            ? TextField(
+                              controller: _controllerTituloLista,
+                              focusNode: _focusNodeTituloLista,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onEditingComplete: guardarTituloLista,
+                            )
+                            : Text(
+                              widget.titulo,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onEditingComplete: guardarTituloLista,
-                          )
-                        : Text(
-                            widget.titulo,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
                   ),
                 ),
               ),
@@ -2046,7 +2153,10 @@ class _ListaTrelloState extends State<ListaTrello> {
                     builder: (BuildContext context) {
                       return AlertDialog(
                         backgroundColor: Colors.black87,
-                        title: const Text('Eliminar Lista', style: TextStyle(color: Colors.white)),
+                        title: const Text(
+                          'Eliminar Lista',
+                          style: TextStyle(color: Colors.white),
+                        ),
                         content: Text(
                           '¿Estás seguro de que quieres eliminar la lista "${widget.titulo}"? Esta acción no se puede deshacer.',
                           style: const TextStyle(color: Colors.white70),
@@ -2056,15 +2166,25 @@ class _ListaTrelloState extends State<ListaTrello> {
                             onPressed: () {
                               Navigator.of(context).pop(); // Cierra el diálogo
                             },
-                            child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                           ElevatedButton(
                             onPressed: () {
                               Navigator.of(context).pop(); // Cierra el diálogo
-                              widget.onEliminarLista(widget.id); // Llama al callback para eliminar la lista
+                              widget.onEliminarLista(
+                                widget.id,
+                              ); // Llama al callback para eliminar la lista
                             },
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text(
+                              'Eliminar',
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ],
                       );
@@ -2131,52 +2251,57 @@ class _ListaTrelloState extends State<ListaTrello> {
                                         right: 8,
                                         top: 2,
                                       ),
-                                      child: isHovered
-                                          ? GestureDetector(
-                                              onTap: () {
-                                                EstadoTarjeta nuevoEstado;
-                                                if (tarjeta.estado ==
-                                                    EstadoTarjeta.hecho) {
-                                                  nuevoEstado =
-                                                      EstadoTarjeta.pendiente;
-                                                } else {
-                                                  nuevoEstado =
-                                                      EstadoTarjeta.hecho;
-                                                }
-                                                widget.onEstadoChanged(
-                                                  index,
-                                                  nuevoEstado,
-                                                );
-                                              },
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: _getColorForEstado(
-                                                      tarjeta.estado,
+                                      child:
+                                          isHovered
+                                              ? GestureDetector(
+                                                onTap: () {
+                                                  EstadoTarjeta nuevoEstado;
+                                                  if (tarjeta.estado ==
+                                                      EstadoTarjeta.hecho) {
+                                                    nuevoEstado =
+                                                        EstadoTarjeta.pendiente;
+                                                  } else {
+                                                    nuevoEstado =
+                                                        EstadoTarjeta.hecho;
+                                                  }
+                                                  widget.onEstadoChanged(
+                                                    index,
+                                                    nuevoEstado,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: _getColorForEstado(
+                                                        tarjeta.estado,
+                                                      ),
+                                                      width: 2,
                                                     ),
-                                                    width: 2,
+                                                    color:
+                                                        tarjeta.estado ==
+                                                                EstadoTarjeta
+                                                                    .hecho
+                                                            ? Colors.green
+                                                            : Colors
+                                                                .transparent,
                                                   ),
-                                                  color: tarjeta.estado ==
-                                                          EstadoTarjeta.hecho
-                                                      ? Colors.green
-                                                      : Colors
-                                                          .transparent,
+                                                  child: Center(
+                                                    child:
+                                                        tarjeta.estado ==
+                                                                EstadoTarjeta
+                                                                    .hecho
+                                                            ? const Icon(
+                                                              Icons.check,
+                                                              size: 16,
+                                                              color:
+                                                                  Colors.white,
+                                                            )
+                                                            : null,
+                                                  ),
                                                 ),
-                                                child: Center(
-                                                  child: tarjeta.estado ==
-                                                          EstadoTarjeta.hecho
-                                                      ? const Icon(
-                                                          Icons.check,
-                                                          size: 16,
-                                                          color:
-                                                              Colors.white,
-                                                        )
-                                                      : null,
-                                                ),
-                                              ),
-                                            )
-                                          : null,
+                                              )
+                                              : null,
                                     ),
                                     Expanded(
                                       child: Text(

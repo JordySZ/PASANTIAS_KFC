@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
 
-
-import 'package:login_app/super%20usario/cards/cards.dart';
-import 'package:login_app/super%20usario/crud_user.dart';
+import 'package:login_app/super%20usario/cards/cards.dart'; // Asumo que TableroScreen está aquí
+import 'package:login_app/super%20usario/crud_user.dart'; // Asumo que UsuariosScreen está aquí
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
-
+import 'package:login_app/login/login.dart'; // Asegúrate de que esta ruta sea correcta para tu LoginScreen
 
 // Modelo del proyecto
 class Project {
@@ -50,7 +49,8 @@ class _DashboardPageState extends State<DashboardPage> {
   double pendingPercent = 0.0;
   int selectedCircleSegment = -1;
 
-  int totalProyectos = 0;  // <--- Aquí la defines
+  int totalProyectos = 0;
+
   @override
   void initState() {
     super.initState();
@@ -67,15 +67,18 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final fetchedProcesses = await _apiService.getProcesses();
       setState(() {
-        _projects = fetchedProcesses
-            .map((process) => Project(
-                  name: process.nombre_proceso,
-                  startDate: process.startDate.toIso8601String(),
-                  endDate: process.endDate.toIso8601String(),
-                  progress: process.progress ?? 0.0,
-                  estado: process.estado,
-                ))
-            .toList();
+        _projects =
+            fetchedProcesses
+                .map(
+                  (process) => Project(
+                    name: process.nombre_proceso,
+                    startDate: process.startDate.toIso8601String(),
+                    endDate: process.endDate.toIso8601String(),
+                    progress: process.progress ?? 0.0,
+                    estado: process.estado,
+                  ),
+                )
+                .toList();
         _projectsFiltered = _projects;
         _isLoadingProjects = false;
         _calculateProjectPercentages();
@@ -89,39 +92,50 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _calculateProjectPercentages() {
-  if (_projects.isEmpty) {
+    if (_projects.isEmpty) {
+      setState(() {
+        completedPercent = 0.0;
+        inProgressPercent = 0.0;
+        pendingPercent = 0.0;
+        totalProyectos = 0;
+      });
+      return;
+    }
+
+    int completedCount =
+        _projects
+            .where((p) => (p.estado?.toLowerCase() ?? '') == 'echo')
+            .length;
+    int inProgressCount =
+        _projects
+            .where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso')
+            .length;
+    int pendingCount =
+        _projects
+            .where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente')
+            .length;
+
+    int otherCount =
+        _projects.length - completedCount - inProgressCount - pendingCount;
+    pendingCount +=
+        otherCount; // Se asume que cualquier otro estado se agrupa en 'Pendiente'
+
+    int total = _projects.length;
+
     setState(() {
-      completedPercent = 0.0;
-      inProgressPercent = 0.0;
-      pendingPercent = 0.0;
-      totalProyectos = 0;
+      completedPercent = completedCount / total;
+      inProgressPercent = inProgressCount / total;
+      pendingPercent = pendingCount / total;
+      totalProyectos = total;
     });
-    return;
   }
-
-int completedCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'echo').length;
-int inProgressCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso').length;
-int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente').length;
-
-
-  int otherCount = _projects.length - completedCount - inProgressCount - pendingCount;
-  pendingCount += otherCount;
-
-  int total = _projects.length;
-
-  setState(() {
-    completedPercent = completedCount / total;
-    inProgressPercent = inProgressCount / total;
-    pendingPercent = pendingCount / total;
-    totalProyectos = total;
-  });
-}
 
   void _filtrarProyectos(String query) {
     setState(() {
-      _projectsFiltered = _projects
-          .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+      _projectsFiltered =
+          _projects
+              .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
+              .toList();
     });
   }
 
@@ -207,40 +221,43 @@ int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pe
   }
 
   void _onItemTapped(int index) {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(); // Cierra el drawer
     switch (index) {
-      case 0:
+      case 0: // Inicio (Dashboard)
         setState(() => _selectedIndex = 0);
         break;
-      case 1:
+      case 1: // Usuarios
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => UsuariosScreen()),
         );
         break;
-      case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => TableroScreen()),
-        );
-        break;
-      case 3:
-       Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TableroScreen(processName: null),
-          ),
-        );
-      case 4:
+      case 2: // Gestión de Procesos / Tablero
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TableroScreen(processName: null),
           ),
         );
-        setState(() => _selectedIndex = 0);
         break;
-      case 5:
+      case 3: // Tablero de Proyectos (Redundante con 2 si es lo mismo)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TableroScreen(processName: null),
+          ),
+        );
+        break;
+      case 4: // Crear nuevo proceso (Redundante con 2 si es lo mismo)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TableroScreen(processName: null),
+          ),
+        );
+        //
+        break;
+      case 5: // Cerrar Sesión
         _showLogoutDialog();
         break;
       default:
@@ -331,10 +348,10 @@ int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pe
       case 1:
         return UsuariosScreen();
       case 2:
-return TableroScreen(processName: null);
-      case 3:
-        
-      case 4:
+        return TableroScreen(processName: null);
+      case 3: // Si TableroScreen es la intención para ambos, mantenlo
+        return TableroScreen(processName: null);
+      case 4: // Si TableroScreen es la intención para ambos, mantenlo
         return TableroScreen(processName: null);
       default:
         return const Center(child: Text('Página no encontrada'));
@@ -434,21 +451,17 @@ return TableroScreen(processName: null);
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-     Text(
-  '$totalProyectos',
-  style: const TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
-    color: Colors.black87,
-  ),
-),
-
+                    Text(
+                      '$totalProyectos',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
                     const Text(
                       'Proyectos',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
                     ),
                   ],
                 ),
@@ -462,38 +475,39 @@ return TableroScreen(processName: null);
     );
   }
 
- Widget _buildLegend() {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      _buildLegendItem(
-        Colors.green,
-        'Completado: ${(completedPercent * 100).toStringAsFixed(1)}%',
-        isSelected: selectedCircleSegment == 0,
-      ),
-      _buildLegendItem(
-        Colors.blue,
-        'En progreso: ${(inProgressPercent * 100).toStringAsFixed(1)}%',
-        isSelected: selectedCircleSegment == 1,
-      ),
-      _buildLegendItem(
-        Colors.orange,
-        'Pendiente: ${(pendingPercent * 100).toStringAsFixed(1)}%',
-        isSelected: selectedCircleSegment == 2,
-      ),
-    ],
-  );
-}
+  Widget _buildLegend() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildLegendItem(
+          Colors.green,
+          'Completado: ${(completedPercent * 100).toStringAsFixed(1)}%',
+          isSelected: selectedCircleSegment == 0,
+        ),
+        _buildLegendItem(
+          Colors.blue,
+          'En progreso: ${(inProgressPercent * 100).toStringAsFixed(1)}%',
+          isSelected: selectedCircleSegment == 1,
+        ),
+        _buildLegendItem(
+          Colors.orange,
+          'Pendiente: ${(pendingPercent * 100).toStringAsFixed(1)}%',
+          isSelected: selectedCircleSegment == 2,
+        ),
+      ],
+    );
+  }
 
   Widget _buildLegendItem(Color color, String text, {bool isSelected = false}) {
     return Container(
-      decoration: isSelected
-          ? BoxDecoration(
-              border: Border.all(color: color, width: 2),
-              borderRadius: BorderRadius.circular(6),
-              color: color.withOpacity(0.15),
-            )
-          : null,
+      decoration:
+          isSelected
+              ? BoxDecoration(
+                border: Border.all(color: color, width: 2),
+                borderRadius: BorderRadius.circular(6),
+                color: color.withOpacity(0.15),
+              )
+              : null,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       margin: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -501,266 +515,300 @@ return TableroScreen(processName: null);
         children: [
           Container(width: 20, height: 14, color: color),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16),
-          ),
+          Text(text, style: const TextStyle(fontSize: 16)),
         ],
       ),
     );
   }
-Widget _buildBarChart() {
-  // Inicializamos contadores para cada mes (de enero a diciembre)
-  List<int> started = List.filled(12, 0); // Proyectos iniciados por mes
-  List<int> closed = List.filled(12, 0);  // Proyectos finalizados por mes
 
-  for (var project in _projects) {
-    final start = DateTime.tryParse(project.startDate);
-    final end = DateTime.tryParse(project.endDate);
+  Widget _buildBarChart() {
+    // Inicializamos contadores para cada mes (de enero a diciembre)
+    List<int> started = List.filled(12, 0); // Proyectos iniciados por mes
+    List<int> closed = List.filled(12, 0); // Proyectos finalizados por mes
 
-    if (start != null) {
-      started[start.month - 1]++;
+    for (var project in _projects) {
+      final start = DateTime.tryParse(project.startDate);
+      final end = DateTime.tryParse(project.endDate);
+
+      if (start != null) {
+        started[start.month - 1]++;
+      }
+
+      if (end != null) {
+        closed[end.month - 1]++;
+      }
     }
 
-    if (end != null) {
-      closed[end.month - 1]++;
-    }
-  }
-
-  return SizedBox(
-    width: 600,
-    height: 370,
-    child: Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text(
-              'Actividad Mensual de Proyectos',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+    return SizedBox(
+      width: 600,
+      height: 370,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text(
+                'Actividad Mensual de Proyectos',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              height: 240,
-              child: CustomPaint(
-                painter: BarChartPainter(
-                  months: const [
-                    'Ene', 'Feb', 'Mar', 'Abr', 'May',
-                    'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-                  ],
-                  started: started,
-                  closed: closed,
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 240,
+                child: CustomPaint(
+                  painter: BarChartPainter(
+                    months: const [
+                      'Ene',
+                      'Feb',
+                      'Mar',
+                      'Abr',
+                      'May',
+                      'Jun',
+                      'Jul',
+                      'Ago',
+                      'Sep',
+                      'Oct',
+                      'Nov',
+                      'Dic',
+                    ],
+                    started: started,
+                    closed: closed,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem(Colors.orange, 'Iniciados'),
-                const SizedBox(width: 20),
-                _buildLegendItem(Colors.cyan, 'Completados'),
-              ],
-            ),
-          ],
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(Colors.orange, 'Iniciados'),
+                  const SizedBox(width: 20),
+                  _buildLegendItem(Colors.cyan, 'Completados'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _tableContent() {
     return _isLoadingProjects
         ? const Center(child: CircularProgressIndicator())
         : _projectsErrorMessage != null
-            ? Center(
-                child: Text(
-                  _projectsErrorMessage!,
-                  style: const TextStyle(color: Colors.red),
+        ? Center(
+          child: Text(
+            _projectsErrorMessage!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        )
+        : SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Tabla de Proyectos',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Tabla de Proyectos',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(
+                              label: Text(
+                                'Nombre',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: const [
-                                  DataColumn(
-                                    label: Text(
-                                      'Nombre',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Estado',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Inicio',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Fin',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                
-                                  DataColumn(
-                                    label: Text(
-                                      'Acciones',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Eliminar',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                                rows: _projectsFiltered.map((project) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(project.name)),
-                                      DataCell(Text(project.estado ?? 'Sin estado')),
-                                      DataCell(Text(_formatDate(project.startDate))),
-                                      DataCell(Text(_formatDate(project.endDate))),
-                                  
-                
-                                      DataCell(
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => TableroScreen(
-                                                  processName: project.name,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                          icon: const Icon(
-                                            Icons.visibility,
-                                            size: 18,
-                                          ),
-                                          label: const Text(
-                                            'Ver Detalles',
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.blue[700],
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            _confirmDeleteProcess(
-                                              context,
-                                              project.name,
-                                            );
-                                          },
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            size: 18,
-                                          ),
-                                          label: const Text(
-                                            'Eliminar',
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red[700],
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
+                            DataColumn(
+                              label: Text(
+                                'Estado',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Inicio',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Fin',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            //
+                            DataColumn(
+                              label: Text(
+                                'Acciones',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Eliminar',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
+                          rows:
+                              _projectsFiltered.map((project) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(Text(project.name)),
+                                    DataCell(
+                                      Text(project.estado ?? 'Sin estado'),
+                                    ),
+                                    DataCell(
+                                      Text(_formatDate(project.startDate)),
+                                    ),
+                                    DataCell(
+                                      Text(_formatDate(project.endDate)),
+                                    ),
+                                    //
+                                    DataCell(
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (context) => TableroScreen(
+                                                    processName: project.name,
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.visibility,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Ver Detalles',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue[700],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          _confirmDeleteProcess(
+                                            context,
+                                            project.name,
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Eliminar',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red[700],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
+              ),
+            ],
+          ),
+        );
   }
 
   void _handleCircleTap(Offset localPos) {
-    final center = Offset(110, 110);
+    // Estas dimensiones deben coincidir con las del SizedBox en _buildPieChart
+    final double widgetSize = 220; // width and height of the SizedBox
+    final double strokeWidth = 30.0;
+    final double innerRadius =
+        (widgetSize / 2) - strokeWidth; // inner boundary of the ring
+    final double outerRadius =
+        (widgetSize / 2); // outer boundary of the ring (or radius for center)
+
+    final center = Offset(widgetSize / 2, widgetSize / 2);
     final dx = localPos.dx - center.dx;
     final dy = localPos.dy - center.dy;
     final distance = sqrt(dx * dx + dy * dy);
 
-    if (distance < 50 || distance > 110) {
+    // Check if the tap is within the drawable ring area
+    if (distance < innerRadius || distance > outerRadius) {
       setState(() => selectedCircleSegment = -1);
       return;
     }
 
     double angle = atan2(dy, dx);
-    if (angle < -pi / 2) angle += 2 * pi;
-    angle += pi / 2;
+    // Adjust angle to be from 0 to 2*pi, starting from the top (-pi/2)
+    // atan2 returns values from -pi to pi. Convert to 0 to 2*pi range.
+    if (angle < 0) angle += 2 * pi;
+    angle -=
+        pi /
+        2; // Adjust so 0 is at the top (like CSS/Flutter's 0 angle for arcs)
+    if (angle < 0) angle += 2 * pi; // Ensure it stays positive after adjustment
 
     final segments = [completedPercent, inProgressPercent, pendingPercent];
-    double cumulative = 0;
+    double cumulativeAngle = 0; // Cumulative angle for segments
+
     for (int i = 0; i < segments.length; i++) {
-      cumulative += segments[i];
-      if (angle <= cumulative * 2 * pi) {
+      double segmentSweepAngle = 2 * pi * segments[i];
+      if (angle >= cumulativeAngle &&
+          angle < (cumulativeAngle + segmentSweepAngle)) {
         setState(() => selectedCircleSegment = i);
         return;
       }
+      cumulativeAngle += segmentSweepAngle;
     }
     setState(() => selectedCircleSegment = -1);
   }
 }
+
+// --- CLASES CUSTOMPAINTER ---
 
 class MultiSegmentCirclePainter extends CustomPainter {
   final double completedPercent;
@@ -781,34 +829,40 @@ class MultiSegmentCirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final strokeWidth = 30.0;
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - strokeWidth / 2;
+    final radius =
+        (size.width / 2) -
+        strokeWidth / 2; // Radius to the center of the stroke
 
-    final backgroundPaint = Paint()
-      ..color = Colors.grey.shade200
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+    final backgroundPaint =
+        Paint()
+          ..color = Colors.grey.shade200
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth;
 
+    // Draw the full background circle
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round; // Use round cap for a smoother look
 
-    double startAngle = -pi / 2;
+    double startAngle = -pi / 2; // Start from top center (12 o'clock)
     final segments = [completedPercent, inProgressPercent, pendingPercent];
 
     for (int i = 0; i < segments.length; i++) {
       paint.color = colors[i];
       double sweepAngle = 2 * pi * segments[i];
-      paint.strokeWidth = (i == selectedSegment) ? strokeWidth + 8 : strokeWidth;
+      paint.strokeWidth =
+          (i == selectedSegment) ? strokeWidth + 8 : strokeWidth;
 
       if (sweepAngle > 0) {
+        // Only draw if the segment has a size
         canvas.drawArc(
           Rect.fromCircle(center: center, radius: radius),
           startAngle,
           sweepAngle,
-          false,
+          false, // Use center is false for an arc (not a pie slice)
           paint,
         );
       }
@@ -842,25 +896,24 @@ class BarChartPainter extends CustomPainter {
     final double leftPadding = 60;
     final double rightPadding = 20;
     final double barWidth = 20;
-    final double barSpace = 8;
+    final double barSpace = 8; // Space between started and closed bars
+    final double groupSpace = 20; // Space between month groups
     final double topPadding = 20;
 
     final int monthCount = months.length;
-    double chartWidth = size.width - leftPadding - rightPadding;
 
-    double totalBarWidthPerGroup = (barWidth * 2) + barSpace;
-    double groupSpace =
-        monthCount > 1 ? (chartWidth - monthCount * totalBarWidthPerGroup) / (monthCount - 1) : 0;
-
-    if (groupSpace < 0) groupSpace = 0;
-
-    final int maxValue = [...started, ...closed].reduce(max);
+    // Calculate max value for Y-axis scaling
+    final int maxValue = [...started, ...closed].reduce((a, b) => max(a, b));
     final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;
-    final int stepValue = maxValue > 0 ? (maxValue / yAxisSteps).ceil() : 1;
+    final double stepValue =
+        maxValue > 0
+            ? (maxValue / yAxisSteps)
+            : 1; // Use double for more precise scaling
 
-    final axisPaint = Paint()
-      ..color = Colors.grey[600]!
-      ..strokeWidth = 1.5;
+    final axisPaint =
+        Paint()
+          ..color = Colors.grey[600]!
+          ..strokeWidth = 1.5;
 
     // Eje Y
     canvas.drawLine(
@@ -879,8 +932,11 @@ class BarChartPainter extends CustomPainter {
     // Líneas guía y etiquetas eje Y
     final textStyle = TextStyle(color: Colors.grey[700], fontSize: 12);
     for (int i = 0; i <= yAxisSteps; i++) {
-      final value = i * stepValue;
-      final y = topPadding + chartHeight - (chartHeight * (value / (yAxisSteps * stepValue)));
+      final double value = i * stepValue;
+      final double y =
+          topPadding +
+          chartHeight -
+          (chartHeight * (value / (yAxisSteps * stepValue)));
 
       canvas.drawLine(
         Offset(leftPadding, y),
@@ -890,7 +946,10 @@ class BarChartPainter extends CustomPainter {
           ..strokeWidth = 0.5,
       );
 
-      final textSpan = TextSpan(text: '$value', style: textStyle);
+      final textSpan = TextSpan(
+        text: value.toInt().toString(),
+        style: textStyle,
+      ); // Convert to Int for display
       final textPainter = TextPainter(
         text: textSpan,
         textAlign: TextAlign.right,
@@ -905,10 +964,13 @@ class BarChartPainter extends CustomPainter {
 
     // Dibujar barras
     for (int i = 0; i < monthCount; i++) {
-      double groupX = leftPadding + i * (totalBarWidthPerGroup + groupSpace);
+      double groupX =
+          leftPadding + i * ((barWidth * 2) + barSpace + groupSpace);
 
       double startedHeight =
-          maxValue == 0 ? 0 : chartHeight * (started[i] / (yAxisSteps * stepValue));
+          maxValue == 0
+              ? 0
+              : chartHeight * (started[i] / (yAxisSteps * stepValue));
       canvas.drawRect(
         Rect.fromLTWH(
           groupX,
@@ -920,7 +982,9 @@ class BarChartPainter extends CustomPainter {
       );
 
       double closedHeight =
-          maxValue == 0 ? 0 : chartHeight * (closed[i] / (yAxisSteps * stepValue));
+          maxValue == 0
+              ? 0
+              : chartHeight * (closed[i] / (yAxisSteps * stepValue));
       canvas.drawRect(
         Rect.fromLTWH(
           groupX + barWidth + barSpace,
@@ -949,10 +1013,14 @@ class BarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant BarChartPainter oldDelegate) {
+    // Only repaint if the data lists change (assuming they are new lists when updated)
     return oldDelegate.started != started || oldDelegate.closed != closed;
   }
 }
 
+// --- CLASE LOGINSCREEN ---
+// Puedes mover esta clase a un archivo separado (e.g., lib/login/login_screen.dart)
+// si lo prefieres para una mejor organización.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
@@ -962,6 +1030,7 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Login'),
         backgroundColor: Colors.blue[900],
+        foregroundColor: Colors.white,
       ),
       body: const Center(
         child: Text('Pantalla de Login', style: TextStyle(fontSize: 24)),

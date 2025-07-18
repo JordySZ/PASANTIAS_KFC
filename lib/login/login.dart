@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:login_app/scrum user/scrum_user.dart';
 import 'package:login_app/gerente/gerente.dart';
 import 'package:login_app/super%20usario/home_page.dart';
+
 class LoginScreen1 extends StatefulWidget {
   const LoginScreen1({Key? key}) : super(key: key);
 
@@ -29,7 +30,9 @@ class _LoginScreenState extends State<LoginScreen1> {
           Uri.parse('http://localhost:3000/usuarios/login'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'correo': _emailController.text.trim(), // ¡Importante: 'correo' coincide con el backend!
+            'correo':
+                _emailController.text
+                    .trim(), // ¡Importante: 'correo' coincide con el backend!
             'contraseña': _passwordController.text,
           }),
         );
@@ -38,27 +41,37 @@ class _LoginScreenState extends State<LoginScreen1> {
 
         if (response.statusCode == 200) {
           final Map<String, dynamic> responseData = json.decode(response.body);
-          final String? userRole = responseData['usuario']['rol']; // Captura el rol del usuario
+          final String? userRole =
+              responseData['usuario']['rol']; // Captura el rol del usuario
 
           // Lógica de redirección basada en el rol
           if (userRole == 'Gerencia') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const GerenciaScreen()), // Redirige a la página de Gerencia
+              MaterialPageRoute(
+                builder: (_) => const GerenciaScreen(),
+              ), // Redirige a la página de Gerencia
             );
           } else if (userRole == 'Supervisor') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const DashboardPage()), // Redirige a la página de Supervisor
+              MaterialPageRoute(
+                builder: (_) => const DashboardPage(),
+              ), // Redirige a la página de Supervisor
             );
-          } else if (userRole == 'Usuario') { // Si el rol es 'Usuario'
+          } else if (userRole == 'Usuario') {
+            // Si el rol es 'Usuario'
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) =>  UsuariosScreen()), // Redirige a la página de usuario estándar
+              MaterialPageRoute(
+                builder: (_) => UsuariosScreen(),
+              ), // Redirige a la página de usuario estándar
             );
           } else {
             // Manejar un rol desconocido o por defecto (podría ser un error o una página genérica)
-            print('Rol desconocido: $userRole. Redirigiendo a Dashboard por defecto.');
+            print(
+              'Rol desconocido: $userRole. Redirigiendo a Dashboard por defecto.',
+            );
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const DashboardPage()),
@@ -153,12 +166,14 @@ class _LoginScreenState extends State<LoginScreen1> {
                       prefixIcon: Icon(Icons.email),
                     ),
                     textAlign: TextAlign.center,
-                    keyboardType: TextInputType.emailAddress, // Teclado para email
+                    keyboardType:
+                        TextInputType.emailAddress, // Teclado para email
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Ingrese su correo';
                       }
-                      if (!value.contains('@')) { // Validación básica de formato de correo
+                      if (!value.contains('@')) {
+                        // Validación básica de formato de correo
                         return 'Ingrese un correo válido';
                       }
                       return null;
@@ -186,27 +201,41 @@ class _LoginScreenState extends State<LoginScreen1> {
                       ),
                     ),
                     textAlign: TextAlign.center,
-                    validator: (value) =>
-                        value!.isEmpty ? 'Ingrese su contraseña' : null,
+                    validator:
+                        (value) =>
+                            value!.isEmpty ? 'Ingrese su contraseña' : null,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700], // Color de fondo del botón
-                      foregroundColor: Colors.white,     // Color del texto y el icono
-                      minimumSize: const Size(double.infinity, 50), // Ancho completo, altura 50
+                      backgroundColor:
+                          Colors.blue[700], // Color de fondo del botón
+                      foregroundColor:
+                          Colors.white, // Color del texto y el icono
+                      minimumSize: const Size(
+                        double.infinity,
+                        50,
+                      ), // Ancho completo, altura 50
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10), // Bordes redondeados
+                        borderRadius: BorderRadius.circular(
+                          10,
+                        ), // Bordes redondeados
                       ),
                       elevation: 5, // Sombra del botón
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Ingresar',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text(
+                              'Ingresar',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                   ),
                 ],
               ),

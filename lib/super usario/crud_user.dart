@@ -852,11 +852,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
           if (index == 0) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => DashboardPage()),
+              MaterialPageRoute(builder: (_) => TableroScreen()),
             );
           } else if (index == 1) {
             // Ya estás en UsuariosScreen, no hace falta redirigir
-          
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,

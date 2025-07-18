@@ -138,7 +138,7 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => TimelineScreen(
+                        (context) => PlannerScreen(
                           processName: _currentProcessCollectionName,
                         ),
                   ),

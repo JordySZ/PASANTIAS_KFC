@@ -7,7 +7,7 @@ import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
-
+//
 
 class PanelTrello extends StatefulWidget {
   final String? processName;
@@ -368,7 +368,7 @@ class _PanelTrelloState extends State<PanelTrello> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => TimelineScreen(
+                        (context) => PlannerScreen(
                           processName: _currentProcessCollectionName,
                         ),
                   ),
