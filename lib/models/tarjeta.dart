@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum EstadoTarjeta {
-  pendiente,
-  en_progreso,
-  hecho,
-}
+enum EstadoTarjeta { pendiente, en_progreso, hecho }
 
 class Tarjeta {
   final String? id; // Debe ser nullable para nuevas tarjetas
@@ -58,19 +54,22 @@ class Tarjeta {
       miembro: map['miembro'] as String? ?? '',
       tarea: map['tarea'] as String? ?? '',
       tiempo: map['tiempo'] as String? ?? '',
-      fechaInicio: map['fechaInicio'] != null
-          ? DateTime.tryParse(map['fechaInicio'] as String)?.toLocal()
-          : null,
-      fechaVencimiento: map['fechaVencimiento'] != null
-          ? DateTime.tryParse(map['fechaVencimiento'] as String)?.toLocal()
-          : null,
+      fechaInicio:
+          map['fechaInicio'] != null
+              ? DateTime.tryParse(map['fechaInicio'] as String)?.toLocal()
+              : null,
+      fechaVencimiento:
+          map['fechaVencimiento'] != null
+              ? DateTime.tryParse(map['fechaVencimiento'] as String)?.toLocal()
+              : null,
       estado: EstadoTarjeta.values.firstWhere(
         (e) => e.name == (map['estado'] as String? ?? 'pendiente'),
         orElse: () => EstadoTarjeta.pendiente,
       ),
-      fechaCompletado: map['fechaCompletado'] != null
-          ? DateTime.tryParse(map['fechaCompletado'] as String)?.toLocal()
-          : null,
+      fechaCompletado:
+          map['fechaCompletado'] != null
+              ? DateTime.tryParse(map['fechaCompletado'] as String)?.toLocal()
+              : null,
       idLista: map['idLista'] as String, // <--- Parsear el nuevo campo
     );
   }
@@ -102,6 +101,7 @@ class Tarjeta {
       idLista: idLista ?? this.idLista, // <--- Asignar en copyWith
     );
   }
+
   Map<String, dynamic> get tiempoRestanteCalculado {
     if (fechaVencimiento == null) {
       return {'text': '⏳ N/A', 'color': Colors.white70};
@@ -114,7 +114,9 @@ class Tarjeta {
     if (estado == EstadoTarjeta.hecho) {
       if (fechaCompletado != null) {
         final DateTime actualFechaCompletado = fechaCompletado!;
-        final differenceWhenCompleted = actualFechaCompletado.difference(vencimientoNoNula);
+        final differenceWhenCompleted = actualFechaCompletado.difference(
+          vencimientoNoNula,
+        );
 
         final days = differenceWhenCompleted.abs().inDays;
         final hours = differenceWhenCompleted.abs().inHours.remainder(24);
@@ -145,7 +147,10 @@ class Tarjeta {
           };
         }
       } else {
-        return {'text': 'Completado (sin fecha de completado)', 'color': Colors.green};
+        return {
+          'text': 'Completado (sin fecha de completado)',
+          'color': Colors.green,
+        };
       }
     }
 
@@ -169,9 +174,10 @@ class Tarjeta {
       }
 
       return {
-        'text': expiredTime.isEmpty
-            ? '⚠️ Vencido (hace menos de 1 minuto)'
-            : '⚠️ Vencido hace $expiredTime',
+        'text':
+            expiredTime.isEmpty
+                ? '⚠️ Vencido (hace menos de 1 minuto)'
+                : '⚠️ Vencido hace $expiredTime',
         'color': Colors.red,
       };
     }
@@ -193,7 +199,10 @@ class Tarjeta {
         'color': Colors.white70,
       };
     } else if (minutes > 0) {
-      return {'text': '⏳ Faltan $minutes minuto${minutes == 1 ? '' : 's'}', 'color': Colors.white70};
+      return {
+        'text': '⏳ Faltan $minutes minuto${minutes == 1 ? '' : 's'}',
+        'color': Colors.white70,
+      };
     } else {
       return {'text': '⏳ Vence ahora', 'color': Colors.amber};
     }
