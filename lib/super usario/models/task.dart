@@ -19,7 +19,6 @@ class Task {
 
   // Este método de ejemplos lo puedes mantener o eliminar, ya no afecta el error.
   static List<Task> getExampleTasks() {
-    final now = DateTime.now();
     return [
       // ... tus tareas de ejemplo ...
     ];

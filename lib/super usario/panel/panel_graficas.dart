@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+<<<<<<< HEAD
 import 'package:login_app/super usario/home_page.dart';
+=======
+>>>>>>> ad594a9 (tabla)
 import 'package:login_app/super usario/tabla/home_screen.dart';
 import 'package:login_app/super usario/cards/cards.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
+<<<<<<< HEAD
 import 'package:login_app/models/process.dart';
 import 'package:login_app/services/api_service.dart' show GraficaConfiguracion;
+=======
+>>>>>>> ad594a9 (tabla)
 import 'package:intl/intl.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 
@@ -125,7 +131,7 @@ class _PanelTrelloState extends State<PanelTrello> {
     );
     if (updated != null) {
       setState(() {
-        graficas[index] = updated as GraficaConfiguracion;
+        graficas[index] = updated;
       });
     }
   }
@@ -837,7 +843,7 @@ class _PanelTrelloState extends State<PanelTrello> {
                         config.tipoGrafica = tipo;
                         config.filtro = filtro;
                         config.periodo = periodo;
-                        await _updateGraficaInBackend(index!, config);
+                        await _updateGraficaInBackend(index, config);
                       } else {
                         final nuevaGrafica = GraficaConfiguracion(
                           tipoGrafica: tipo,
@@ -1214,6 +1220,7 @@ class _PanelTrelloState extends State<PanelTrello> {
     final labels = datos.keys.toList();
     final valores = datos.values.toList();
 
+<<<<<<< HEAD
     // Mapa de nombres de lista para mostrar mejor la información
     final Map<String, String> listaNames = {
       for (var lista in listas) lista.id: lista.titulo,
@@ -1241,6 +1248,30 @@ class _PanelTrelloState extends State<PanelTrello> {
                           response.touchedSection!.touchedSectionIndex;
                       final categoria = labels[touchedIndex];
 
+=======
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Gráfico
+          SizedBox(
+            height: 220,
+            width: 220,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 0,
+                pieTouchData: PieTouchData(
+                  touchCallback: (event, response) {
+                    if (response != null &&
+                        response.touchedSection != null &&
+                        event is FlTapUpEvent) {
+                      final touchedIndex =
+                          response.touchedSection!.touchedSectionIndex;
+                      final categoria = labels[touchedIndex];
+
+>>>>>>> ad594a9 (tabla)
                       // Mostrar diálogo con tarjetas filtradas
                       showDialog(
                         context: context,
@@ -1601,6 +1632,238 @@ Widget _buildInfoRow(String label, String valor) {
       ],
     ),
   );
+}
+
+Widget mostrarTarjetasPorCategoria(
+  String categoria,
+  List<Tarjeta> tarjetas,
+  List<ListaDatos> listas,
+) {
+  // Crear un mapa de ID de lista a nombre de lista para mostrar mejor la información
+  final Map<String, String> listaNames = {
+    for (var lista in listas) lista.id: lista.titulo,
+  };
+
+  List<Tarjeta> tarjetasFiltradas =
+      tarjetas.where((t) {
+        final tiempoInfo = t.tiempoRestanteCalculado;
+        final textoEstado = tiempoInfo['text'] as String;
+        final hoy = DateTime.now();
+
+        // Para el filtro de lista, comparamos con el título de la lista
+        if (listaNames.containsValue(categoria)) {
+          return listaNames[t.idLista] == categoria;
+        }
+
+        // Para el filtro de estado
+        if (t.estado.name.toLowerCase() == categoria.toLowerCase()) {
+          return true;
+        }
+
+        // Para el filtro de miembro
+        if (t.miembro == categoria ||
+            (categoria == "Sin asignar" && t.miembro.isEmpty)) {
+          return true;
+        }
+
+        // Para el filtro de vencimiento (nuevas categorías)
+        if (categoria == 'Completado (a tiempo)' &&
+            textoEstado.contains('Completado (con') &&
+            textoEstado.contains('restantes')) {
+          return true;
+        }
+        if (categoria == 'Completado (con retraso)' &&
+            textoEstado.contains('Completado (con') &&
+            textoEstado.contains('retraso')) {
+          return true;
+        }
+        if (categoria == 'Completado (sin fecha)' &&
+            textoEstado == 'Completado (sin fecha de completado)') {
+          return true;
+        }
+        if (categoria == 'Vencido' && textoEstado.contains('Vencido')) {
+          return true;
+        }
+        if (categoria == 'Por vencer (próximos 2 días)' &&
+            textoEstado.contains('Faltan') &&
+            t.fechaVencimiento != null &&
+            t.fechaVencimiento!.difference(hoy).inDays <= 2) {
+          return true;
+        }
+        if (categoria == 'Por vencer (más de 2 días)' &&
+            textoEstado.contains('Faltan') &&
+            t.fechaVencimiento != null &&
+            t.fechaVencimiento!.difference(hoy).inDays > 2) {
+          return true;
+        }
+        if (categoria == 'Sin fecha' && t.fechaVencimiento == null) {
+          return true;
+        }
+
+        return false;
+      }).toList();
+
+  return tarjetasFiltradas.isEmpty
+      ? const Center(
+        child: Text(
+          'No hay tarjetas en esta categoría.',
+          style: TextStyle(color: Colors.white70),
+        ),
+      )
+      : ListView.builder(
+        itemCount: tarjetasFiltradas.length,
+        itemBuilder: (context, index) {
+          final tarjeta = tarjetasFiltradas[index];
+          final tiempoInfo = tarjeta.tiempoRestanteCalculado;
+          final nombreLista = listaNames[tarjeta.idLista] ?? 'Desconocida';
+
+          return Card(
+            color: Colors.grey[800],
+            margin: const EdgeInsets.all(8),
+            child: ListTile(
+              title: Text(
+                tarjeta.titulo,
+                style: const TextStyle(color: Colors.white),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (listaNames.containsKey(tarjeta.idLista))
+                    Text(
+                      'Lista: $nombreLista',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  if (tarjeta.miembro.isNotEmpty)
+                    Text(
+                      'Miembro: ${tarjeta.miembro}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  Text(
+                    'Estado: ${tarjeta.estado.name}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  if (tarjeta.fechaVencimiento != null)
+                    Text(
+                      'Vence: ${DateFormat('dd/MM/yyyy').format(tarjeta.fechaVencimiento!)}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  Text(
+                    tiempoInfo['text'],
+                    style: TextStyle(color: tiempoInfo['color']),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+}
+
+//Metodo para la SubVentana//
+
+class TarjetaDetalleView extends StatelessWidget {
+  final String categoria; // será el idLista que filtra
+  final List<Tarjeta> tarjetasDisponibles;
+  final Map<String, String> nombreListas; // Map idLista -> nombreLista
+
+  const TarjetaDetalleView({
+    super.key,
+    required this.categoria,
+    required this.tarjetasDisponibles,
+    required this.nombreListas,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Filtrar tarjetas que pertenezcan a esta lista (idLista)
+    List<Tarjeta> tarjetasFiltradas =
+        tarjetasDisponibles
+            .where(
+              (tarjeta) =>
+                  tarjeta.idLista.toLowerCase() == categoria.toLowerCase(),
+            )
+            .toList();
+
+    if (tarjetasFiltradas.isEmpty) {
+      return Center(
+        child: Text(
+          'No hay tarjetas en esta lista',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    final nombreLista = nombreListas[categoria] ?? 'Lista Desconocida';
+
+    return Scaffold(
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: Text('Tarjetas en "$nombreLista"'),
+        backgroundColor: Colors.grey[850],
+      ),
+      body: ListView.builder(
+        itemCount: tarjetasFiltradas.length,
+        itemBuilder: (context, index) {
+          final tarjeta = tarjetasFiltradas[index];
+          final tiempoRestante = tarjeta.tiempoRestanteCalculado;
+
+          return Card(
+            color: Colors.grey[800],
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListTile(
+              title: Text(
+                tarjeta.titulo,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (tarjeta.descripcion.isNotEmpty)
+                    Text(
+                      tarjeta.descripcion,
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  Text(
+                    'Miembro: ${tarjeta.miembro}',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    'Tarea: ${tarjeta.tarea}',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    'Estado: ${tarjeta.estado.name}',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    'Fecha inicio: ${tarjeta.fechaInicio != null ? _formatDate(tarjeta.fechaInicio!) : "N/A"}',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    'Fecha vencimiento: ${tarjeta.fechaVencimiento != null ? _formatDate(tarjeta.fechaVencimiento!) : "N/A"}',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    tiempoRestante['text'],
+                    style: TextStyle(color: tiempoRestante['color']),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
 }
 
 Widget mostrarTarjetasPorCategoria(

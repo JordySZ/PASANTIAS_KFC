@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
@@ -13,122 +16,229 @@ class KanbanTaskManager extends StatefulWidget {
 }
 
 class _KanbanTaskManagerState extends State<KanbanTaskManager> {
-  late List<Map<String, dynamic>> tasks;
+  List<Map<String, dynamic>> tasks = [];
 
-  final List<String> miembrosDisponibles = [
-    'Alex',
-    'David',
-    'Juan',
-    'Rocio',
-    'Luis',
-    'Rebeca',
-    'Jose',
-  ];
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController statusController = TextEditingController();
+  final String baseUrl = 'http://localhost:3000';
 
-  List<String> listasDisponibles = [
-    'Primer Sprint',
-    'Segundo Sprint',
-    'Tercer Sprint',
-    'Cuarto Sprint',
-  ];
-
-  String? _currentProcessCollectionName;
+  bool showAddForm = false;
+  String? estadoFiltro;
 
   @override
   void initState() {
     super.initState();
+    fetchTasks();
+  }
 
-    tasks = [
-      {
-        'titulo': 'Creación - Login',
-        'lista': 'Primer Sprint',
-        'estado': 'HECHO',
-        'miembro': 'Alex',
-        'fecha': DateTime(2024, 6, 30),
-        'editando': false,
-      },
-      {
-        'titulo': 'Creación CRUD - User',
-        'lista': 'Primer Sprint',
-        'estado': 'HECHO',
-        'miembro': 'David',
-        'fecha': DateTime(2024, 6, 30),
-        'editando': false,
-      },
-      {
-        'titulo': 'FASE EN PROCESO',
-        'lista': 'Segundo Sprint',
-        'estado': 'EN PROCESO',
-        'miembro': 'Juan',
-        'fecha': DateTime(2024, 7, 7),
-        'editando': true,
-      },
-    ];
-    _currentProcessCollectionName = widget.processName;
+  Future<void> fetchTasks() async {
+    final url = Uri.parse('$baseUrl/procesos/${widget.processName}/cards');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final raw = response.body;
+      print('🔹 RAW TASK DATA: $raw');
+      setState(() {
+        tasks = List<Map<String, dynamic>>.from(json.decode(raw));
+      });
+    } else {
+      print('Error al obtener tareas: ${response.body}');
+    }
+  }
+
+  Future<void> addTask(String title, String estado, String idLista) async {
+    final url = Uri.parse('$baseUrl/procesos/${widget.processName}/cards');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'titulo': title,
+        'estado': estado,
+        'idLista': idLista,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      fetchTasks();
+    } else {
+      print('Error al agregar tarea: ${response.body}');
+    }
+  }
+
+  Future<void> updateTask(String id, String nuevoEstado) async {
+    final url = Uri.parse('$baseUrl/procesos/${widget.processName}/cards/$id');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'estado': nuevoEstado}),
+    );
+
+    if (response.statusCode == 200) {
+      fetchTasks();
+    } else {
+      print('Error al actualizar tarea: ${response.body}');
+    }
+  }
+
+  Future<void> deleteTask(String id) async {
+    final url = Uri.parse('$baseUrl/procesos/${widget.processName}/cards/$id');
+    final response = await http.delete(url);
+
+    if (response.statusCode == 200) {
+      fetchTasks();
+    } else {
+      print('Error al eliminar tarea: ${response.body}');
+    }
   }
 
   Color _estadoColor(String estado) {
-    switch (estado) {
-      case 'HECHO':
+    switch (estado.toLowerCase()) {
+      case 'hecho':
         return Colors.green;
-      case 'EN PROCESO':
+      case 'en_progreso':
         return Colors.orange;
-      case 'INVALIDO':
+      case 'pendiente':
         return Colors.red;
       default:
         return Colors.grey;
     }
   }
 
-  Future<void> _cambiarFecha(int index) async {
-    DateTime? nuevaFecha = await showDatePicker(
+  void _showTaskDetailsDialog(Map<String, dynamic> card) {
+    showDialog(
       context: context,
-      initialDate: tasks[index]['fecha'],
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2D2F3A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: Text(
+            card['titulo'] ?? 'Sin título',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if ((card['descripcion'] ?? '').isNotEmpty) ...[
+                  _buildDetailRow(
+                    Icons.description,
+                    "Descripción",
+                    card['descripcion'],
+                  ),
+                  const Divider(color: Colors.white24),
+                ],
+                _buildDetailRow(
+                  Icons.person,
+                  "Asignado a",
+                  card['miembro'] ?? "N/A",
+                ),
+                const Divider(color: Colors.white24),
+                _buildDetailRow(
+                  Icons.flag,
+                  "Estado",
+                  (card['estado'] ?? 'N/A').toString().replaceAll('', ' '),
+                ),
+                const Divider(color: Colors.white24),
+                if (card['fechaInicio'] != null)
+                  _buildDetailRow(
+                    Icons.play_arrow,
+                    "Fecha de Inicio",
+                    DateFormat.yMMMMd(
+                      'es_ES',
+                    ).format(DateTime.parse(card['fechaInicio']).toLocal()),
+                  ),
+                if (card['fechaVencimiento'] != null)
+                  _buildDetailRow(
+                    Icons.event_busy,
+                    "Fecha de Vencimiento",
+                    DateFormat.yMMMMd('es_ES').format(
+                      DateTime.parse(card['fechaVencimiento']).toLocal(),
+                    ),
+                  ),
+                if (card['fechaCompletado'] != null)
+                  _buildDetailRow(
+                    Icons.check_circle,
+                    "Fecha de Finalización",
+                    DateFormat.yMMMMd(
+                      'es_ES',
+                    ).format(DateTime.parse(card['fechaCompletado']).toLocal()),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                "Cerrar",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
     );
-
-    if (nuevaFecha != null) {
-      setState(() {
-        tasks[index]['fecha'] = nuevaFecha;
-      });
-    }
   }
 
-  void _cambiarEstado(int index) {
-    setState(() {
-      final estadoActual = tasks[index]['estado'];
-      if (estadoActual == 'HECHO') {
-        tasks[index]['estado'] = 'INVALIDO';
-      } else if (estadoActual == 'INVALIDO') {
-        tasks[index]['estado'] = 'EN PROCESO';
-      } else {
-        tasks[index]['estado'] = 'HECHO';
-      }
-    });
+  Widget _buildDetailRow(IconData icon, String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.tealAccent, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(content, style: const TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredTasks =
+        estadoFiltro == null
+            ? tasks
+            : tasks
+                .where((task) => task['estado']?.toLowerCase() == estadoFiltro)
+                .toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E2D),
       appBar: AppBar(
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: Colors.black,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
+            // Redirige al tablero del proceso actual usando el processName correcto
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder:
-                    (_) => TableroScreen(
-                      processName: _currentProcessCollectionName,
-                    ),
+                builder: (_) => TableroScreen(processName: widget.processName),
               ),
             );
           },
         ),
-        title: const Text('Gestión de Tareas'),
+        title: Text(("Tablas"), style: TextStyle(color: Colors.white)),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.menu),
@@ -138,9 +248,14 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                   context,
                   MaterialPageRoute(
                     builder:
+<<<<<<< HEAD
                         (context) => PlannerScreen(
                           processName: _currentProcessCollectionName,
                         ),
+=======
+                        (context) =>
+                            PlannerScreen(processName: widget.processName),
+>>>>>>> ad594a9 (tabla)
                   ),
                 );
               } else if (value == 'panel') {
@@ -148,9 +263,8 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => PanelTrello(
-                          processName: _currentProcessCollectionName,
-                        ),
+                        (context) =>
+                            PanelTrello(processName: widget.processName),
                   ),
                 );
               } else if (value == 'tablas') {
@@ -158,9 +272,8 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => KanbanTaskManager(
-                          processName: _currentProcessCollectionName,
-                        ),
+                        (context) =>
+                            KanbanTaskManager(processName: widget.processName),
                   ),
                 );
               }
@@ -183,285 +296,314 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
+      body: Column(
         children: [
-          _buildHeaderRow(),
-          const Divider(color: Colors.white24),
-          ...List.generate(tasks.length, (index) => _buildTaskRow(index)),
-        ],
-      ),
-      floatingActionButton: ExpandableFab(
-        onAddTarjeta: () {
-          setState(() {
-            tasks.add({
-              'titulo': 'Nueva tarea',
-              'lista':
-                  listasDisponibles.isNotEmpty
-                      ? listasDisponibles.first
-                      : 'Nuevo',
-              'estado': 'EN PROCESO',
-              'miembro': miembrosDisponibles.first,
-              'fecha': DateTime.now(),
-              'editando': true,
-            });
-          });
-        },
-        onAddLista: () {
-          showDialog(
-            context: context,
-            builder: (context) {
-              final TextEditingController listaController =
-                  TextEditingController();
-              return AlertDialog(
-                backgroundColor: const Color(0xFF2C2C3E),
-                title: const Text(
-                  'Nueva Lista',
-                  style: TextStyle(color: Colors.white),
-                ),
-                content: TextField(
-                  controller: listaController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Nombre de la lista',
-                    hintStyle: TextStyle(color: Colors.white38),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      if (listaController.text.trim().isNotEmpty) {
-                        setState(() {
-                          listasDisponibles.add(listaController.text.trim());
-                        });
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    child: const Text(
-                      'Guardar',
-                      style: TextStyle(color: Colors.tealAccent),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHeaderRow() {
-    return Row(
-      children: const [
-        _HeaderCell('Tarjeta', flex: 3),
-        _HeaderCell('Lista', flex: 2),
-        _HeaderCell('Etiqueta', flex: 2),
-        _HeaderCell('Miembros', flex: 3),
-        _HeaderCell('Fecha', flex: 2),
-      ],
-    );
-  }
-
-  Widget _buildTaskRow(int index) {
-    final task = tasks[index];
-    final DateTime fecha = task['fecha'];
-    final String fechaTexto = '${fecha.day}/${fecha.month}';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white24)),
-      ),
-      child: Row(
-        children: [
-          _DataCell(
-            Row(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child:
-                      task['editando'] == true
-                          ? TextField(
-                            autofocus: true,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                              hintText: 'Nombre',
-                              hintStyle: TextStyle(color: Colors.white38),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                            ),
-                            controller: TextEditingController(
-                              text: task['titulo'],
-                            ),
-                            onSubmitted: (value) {
-                              setState(() {
-                                task['titulo'] =
-                                    value.trim().isEmpty
-                                        ? task['titulo']
-                                        : value.trim();
-                                task['editando'] = false;
-                              });
-                            },
-                          )
-                          : Text(
-                            task['titulo'],
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    task['editando'] == true ? Icons.check : Icons.edit,
-                    color: Colors.white70,
-                    size: 18,
+                DropdownButton<String?>(
+                  value: estadoFiltro,
+                  dropdownColor: const Color(0xFF2C2C3E),
+                  hint: const Text(
+                    'Filtrar por estado',
+                    style: TextStyle(color: Colors.white70),
                   ),
-                  onPressed: () {
+                  items: const [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        'Todos',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'pendiente',
+                      child: Text(
+                        'Pendiente',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'en_progreso',
+                      child: Text(
+                        'En Progreso',
+                        style: TextStyle(color: Colors.orangeAccent),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'hecho',
+                      child: Text(
+                        'Hecho',
+                        style: TextStyle(color: Colors.greenAccent),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
                     setState(() {
-                      task['editando'] = !(task['editando'] == true);
+                      estadoFiltro = value;
                     });
                   },
                 ),
               ],
             ),
-            flex: 3,
           ),
-          _DataCell(
-            DropdownButton<String>(
-              value: task['lista'],
-              underline: const SizedBox(),
-              iconEnabledColor: Colors.white,
-              dropdownColor: const Color(0xFF2C2C3E),
-              style: const TextStyle(color: Colors.white),
-              isExpanded: true,
-              onChanged: (String? newValue) {
-                setState(() {
-                  task['lista'] = newValue!;
-                });
-              },
-              items:
-                  listasDisponibles
-                      .map(
-                        (value) => DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2C2C3E),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: const [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Tarjeta',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // Lista eliminada
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Miembro',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Etiqueta',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Fecha Inicio → Fecha Entrega',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Acciones',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: filteredTasks.length,
+              itemBuilder: (context, index) {
+                final t = filteredTasks[index];
+                final titulo = t['titulo'] ?? 'Sin título';
+                final estado = t['estado'] ?? 'Ninguno';
+                final miembro = t['miembro'] ?? 'Sin asignar';
+
+                final fechaInicioRaw = t['fechaInicio'];
+                final fechaFinRaw = t['fechaVencimiento'];
+
+                String fechas = 'Sin fecha';
+                if (fechaInicioRaw != null || fechaFinRaw != null) {
+                  final inicio =
+                      fechaInicioRaw != null
+                          ? DateTime.tryParse(fechaInicioRaw)?.toLocal()
+                          : null;
+                  final fin =
+                      fechaFinRaw != null
+                          ? DateTime.tryParse(fechaFinRaw)?.toLocal()
+                          : null;
+
+                  final formato =
+                      (DateTime dt) =>
+                          '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+
+                  final inicioStr = inicio != null ? formato(inicio) : '¿?';
+                  final finStr = fin != null ? formato(fin) : '¿?';
+
+                  fechas = '$inicioStr → $finStr';
+                }
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C3E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: GestureDetector(
+                          onTap: () => _showTaskDetailsDialog(t),
+                          child: Text(
+                            titulo,
+                            style: const TextStyle(
+                              color: Colors.lightBlueAccent,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ),
-                      )
-                      .toList(),
-            ),
-            flex: 2,
-          ),
-          _DataCell(
-            GestureDetector(
-              onTap: () => _cambiarEstado(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _estadoColor(task['estado']).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  task['estado'],
-                  style: TextStyle(
-                    color: _estadoColor(task['estado']),
-                    fontWeight: FontWeight.bold,
+                      ),
+                      // Lista eliminada
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          miembro,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: GestureDetector(
+                          onTap: () {
+                            final current = estado.toLowerCase();
+                            String nuevo = 'pendiente';
+                            if (current == 'pendiente')
+                              nuevo = 'en_progreso';
+                            else if (current == 'en_progreso')
+                              nuevo = 'hecho';
+                            updateTask(t['_id'], nuevo);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _estadoColor(estado).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              estado,
+                              style: TextStyle(
+                                color: _estadoColor(estado),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          fechas,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () => deleteTask(t['_id']),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ),
-            flex: 2,
-          ),
-          _DataCell(
-            DropdownButton<String>(
-              value: task['miembro'],
-              underline: const SizedBox(),
-              iconEnabledColor: Colors.white,
-              dropdownColor: const Color(0xFF2C2C3E),
-              style: const TextStyle(color: Colors.white),
-              isExpanded: true,
-              onChanged: (String? newValue) {
-                setState(() {
-                  task['miembro'] = newValue!;
-                });
+                );
               },
-              items:
-                  miembrosDisponibles
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                      .toList(),
             ),
-            flex: 3,
           ),
-          _DataCell(
-            InkWell(
-              onTap: () => _cambiarFecha(index),
-              child: Row(
+          if (showAddForm)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
                 children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.greenAccent,
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Título de la tarea',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      filled: true,
+                      fillColor: Color(0xFF2C2C3E),
+                    ),
+                    style: const TextStyle(color: Colors.white),
                   ),
-                  const SizedBox(width: 4),
-                  Text(fechaTexto, style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: statusController,
+                    decoration: const InputDecoration(
+                      labelText:
+                          'Estado inicial (pendiente, en_progreso, hecho)',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      filled: true,
+                      fillColor: Color(0xFF2C2C3E),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      final titulo = titleController.text.trim();
+                      final estado = statusController.text.trim();
+                      const idLista =
+                          '64f9aa8f8a8a8a8a8a8a8a8a'; // cambia por ID real
+                      if (titulo.isNotEmpty && estado.isNotEmpty) {
+                        addTask(titulo, estado, idLista);
+                        titleController.clear();
+                        statusController.clear();
+                        setState(() => showAddForm = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                    ),
+                    child: const Text('Agregar tarea'),
+                  ),
                 ],
               ),
             ),
-            flex: 2,
-          ),
         ],
       ),
-    );
-  }
-}
-
-class _HeaderCell extends StatelessWidget {
-  final String text;
-  final int flex;
-  const _HeaderCell(this.text, {this.flex = 1});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white70,
-          fontSize: 14,
-        ),
+      floatingActionButton: ExpandableFab(
+        onAddTarjeta: () {
+          setState(() {
+            showAddForm = true;
+          });
+        },
+        onAddLista: () {},
       ),
     );
   }
 }
 
-class _DataCell extends StatelessWidget {
-  final Widget child;
-  final int flex;
-  const _DataCell(this.child, {this.flex = 1});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Align(alignment: Alignment.centerLeft, child: child),
-    );
-  }
-}
-
-// FAB Personalizado
 class ExpandableFab extends StatefulWidget {
   final VoidCallback onAddTarjeta;
   final VoidCallback onAddLista;
-
   const ExpandableFab({
     super.key,
     required this.onAddTarjeta,
     required this.onAddLista,
   });
-
   @override
   State<ExpandableFab> createState() => _ExpandableFabState();
 }
@@ -469,7 +611,6 @@ class ExpandableFab extends StatefulWidget {
 class _ExpandableFabState extends State<ExpandableFab>
     with SingleTickerProviderStateMixin {
   bool _open = false;
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -481,34 +622,20 @@ class _ExpandableFabState extends State<ExpandableFab>
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: FloatingActionButton.extended(
               heroTag: 'addTarjeta',
+              icon: const Icon(Icons.post_add),
+              label: const Text('Tarjeta'),
+              backgroundColor: Colors.teal,
               onPressed: () {
                 widget.onAddTarjeta();
                 setState(() => _open = false);
               },
-              label: const Text('Tarjeta'),
-              icon: const Icon(Icons.post_add),
-              backgroundColor: Colors.teal,
-            ),
-          ),
-        if (_open)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: FloatingActionButton.extended(
-              heroTag: 'addLista',
-              onPressed: () {
-                widget.onAddLista();
-                setState(() => _open = false);
-              },
-              label: const Text('Lista'),
-              icon: const Icon(Icons.list),
-              backgroundColor: Colors.deepOrange,
             ),
           ),
         FloatingActionButton(
           heroTag: 'main',
-          onPressed: () => setState(() => _open = !_open),
-          backgroundColor: Colors.teal.shade700,
           child: Icon(_open ? Icons.close : Icons.add),
+          backgroundColor: Colors.teal.shade700,
+          onPressed: () => setState(() => _open = !_open),
         ),
       ],
     );

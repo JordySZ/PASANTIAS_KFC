@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:login_app/scrum%20user/scrum_user.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/home_page.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';

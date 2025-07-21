@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class Process {
   final String? id;
   final String nombre_proceso; // Propiedad en tu clase Process

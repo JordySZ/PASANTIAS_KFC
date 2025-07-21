@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:login_app/super%20usario/models/task.dart';
 import 'dart:ui' as ui;
 
@@ -20,14 +19,16 @@ class TimelinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint gridLinePaint = Paint() // Cuadrícula más suave
-      ..color = Colors.grey.shade100
-      ..strokeWidth = 1.0;
+    final Paint gridLinePaint =
+        Paint() // Cuadrícula más suave
+          ..color = Colors.grey.shade100
+          ..strokeWidth = 1.0;
 
     final Paint todayHighlightPaint =
         Paint() // Pintura para el sombreado de hoy
-          ..color =
-              Colors.red.shade50.withOpacity(0.5); // Sombreado pastel para hoy
+          ..color = Colors.red.shade50.withOpacity(
+            0.5,
+          ); // Sombreado pastel para hoy
 
     final TextPainter textPainter = TextPainter(
       textDirection: ui.TextDirection.ltr,
@@ -36,8 +37,10 @@ class TimelinePainter extends CustomPainter {
     // Dibuja el sombreado para el día de hoy
     final double todayX =
         DateTime.now().difference(minDate).inDays * pixelsPerDay;
-    canvas.drawRect(Rect.fromLTWH(todayX, 0, pixelsPerDay, size.height),
-        todayHighlightPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(todayX, 0, pixelsPerDay, size.height),
+      todayHighlightPaint,
+    );
 
     // --- Las líneas de la cuadrícula horizontal para las filas de tareas ---
     for (int i = 0; i <= tasks.length; i++) {
@@ -67,8 +70,8 @@ class TimelinePainter extends CustomPainter {
         Rect.fromLTWH(startX + 2, y + 2, barWidth, rowHeight / 2), // Desplazado
         const Radius.circular(6), // Bordes más redondeados
       );
-      final Paint shadowPaint = Paint()
-        ..color = Colors.black.withOpacity(0.1); // Sombra suave
+      final Paint shadowPaint =
+          Paint()..color = Colors.black.withOpacity(0.1); // Sombra suave
       canvas.drawRRect(shadowRRect, shadowPaint);
 
       // Dibujar la barra de la tarea
@@ -97,8 +100,10 @@ class TimelinePainter extends CustomPainter {
         ),
       );
       textPainter.layout(maxWidth: barWidth - 10);
-      textPainter.paint(canvas,
-          Offset(startX + 5, y + (rowHeight / 2 - textPainter.height) / 2));
+      textPainter.paint(
+        canvas,
+        Offset(startX + 5, y + (rowHeight / 2 - textPainter.height) / 2),
+      );
     }
   }
 
