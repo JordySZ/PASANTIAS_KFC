@@ -1,17 +1,5 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
-
-// --- Importa tus modelos y servicios ---
-import 'package:login_app/services/api_service.dart';
-import 'package:login_app/models/tarjeta.dart';
-
-// --- Importa otras pantallas para la navegación ---
-import 'package:login_app/super usario/cards/cards.dart';
-=======
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
 import 'package:login_app/super%20usario/tabla/home_screen.dart';
@@ -22,7 +10,6 @@ import 'package:intl/date_symbol_data_local.dart';
 // --- Importa tus modelos y servicios ---
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/tarjeta.dart';
->>>>>>> ad594a9 (tabla)
 
 // Normaliza un DateTime a medianoche en UTC para evitar problemas de zona horaria
 DateTime normalizeDate(DateTime date) {
@@ -113,8 +100,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
         backgroundColor: const Color(0xFF1E1F25),
         elevation: 0,
         title: _buildHeader(),
-<<<<<<< HEAD
-=======
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -177,7 +162,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ],
           ),
         ],
->>>>>>> ad594a9 (tabla)
       ),
       body: TableCalendar<Tarjeta>(
         locale: 'es_ES',
@@ -565,10 +549,6 @@ class _PlannerScreenState extends State<PlannerScreen> {
       case EstadoTarjeta.en_progreso:
         return Colors.blue;
       case EstadoTarjeta.pendiente:
-<<<<<<< HEAD
-      default:
-=======
->>>>>>> ad594a9 (tabla)
         return Colors.orange;
     }
   }

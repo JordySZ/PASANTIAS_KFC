@@ -6,10 +6,6 @@ import 'package:login_app/super%20usario/cards/cards.dart'; // Asumo que Tablero
 import 'package:login_app/super%20usario/crud_user.dart'; // Asumo que UsuariosScreen está aquí
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
-<<<<<<< HEAD
-import 'package:login_app/login/login.dart'; // Asegúrate de que esta ruta sea correcta para tu LoginScreen
-=======
->>>>>>> ad594a9 (tabla)
 
 // Modelo del proyecto
 class Project {
@@ -351,15 +347,8 @@ class _DashboardPageState extends State<DashboardPage> {
       case 1:
         return UsuariosScreen();
       case 2:
-<<<<<<< HEAD
-        return TableroScreen(processName: null);
-      case 3: // Si TableroScreen es la intención para ambos, mantenlo
-        return TableroScreen(processName: null);
-      case 4: // Si TableroScreen es la intención para ambos, mantenlo
-=======
       case 3:
       case 4:
->>>>>>> ad594a9 (tabla)
         return TableroScreen(processName: null);
       default:
         return const Center(child: Text('Página no encontrada'));
@@ -529,11 +518,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-<<<<<<< HEAD
-  Widget _buildBarChart() {
-=======
   Widget _buildBarChart(BoxConstraints constraints) {
->>>>>>> ad594a9 (tabla)
     // Inicializamos contadores para cada mes (de enero a diciembre)
     List<int> started = List.filled(12, 0); // Proyectos iniciados por mes
     List<int> closed = List.filled(12, 0); // Proyectos finalizados por mes
@@ -551,57 +536,6 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
-<<<<<<< HEAD
-    return SizedBox(
-      width: 600,
-      height: 370,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const Text(
-                'Actividad Mensual de Proyectos',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 240,
-                child: CustomPaint(
-                  painter: BarChartPainter(
-                    months: const [
-                      'Ene',
-                      'Feb',
-                      'Mar',
-                      'Abr',
-                      'May',
-                      'Jun',
-                      'Jul',
-                      'Ago',
-                      'Sep',
-                      'Oct',
-                      'Nov',
-                      'Dic',
-                    ],
-                    started: started,
-                    closed: closed,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildLegendItem(Colors.orange, 'Iniciados'),
-                  const SizedBox(width: 20),
-                  _buildLegendItem(Colors.cyan, 'Completados'),
-                ],
-              ),
-            ],
-=======
     // Calculamos el ancho dinámicamente según barras y espacios para evitar desbordes
     const double barWidth = 20;
     const double barSpace = 8; // Space between started and closed bars
@@ -676,7 +610,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
             ),
->>>>>>> ad594a9 (tabla)
           ),
         ),
       ),

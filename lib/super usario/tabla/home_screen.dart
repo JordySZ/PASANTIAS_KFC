@@ -248,14 +248,8 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                   context,
                   MaterialPageRoute(
                     builder:
-<<<<<<< HEAD
-                        (context) => PlannerScreen(
-                          processName: _currentProcessCollectionName,
-                        ),
-=======
                         (context) =>
                             PlannerScreen(processName: widget.processName),
->>>>>>> ad594a9 (tabla)
                   ),
                 );
               } else if (value == 'panel') {
