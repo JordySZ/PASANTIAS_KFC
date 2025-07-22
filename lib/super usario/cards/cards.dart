@@ -70,222 +70,7 @@ class _TableroScreenState extends State<TableroScreen> {
     super.dispose();
   }
 
-  Future<void> _mostrarDialogoEditarProceso(BuildContext context) async {
-    if (_currentProcessDetails == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay un proceso cargado para editar.')),
-      );
-      return;
-    }
-
-    // Precargar los controladores con los datos actuales del proceso
-    _processNameController.text = _currentProcessDetails!.nombre_proceso;
-    _selectedStartDate = _currentProcessDetails!.startDate;
-    _startDateController.text =
-        _selectedStartDate != null
-            ? DateFormat('dd/MM/yyyy').format(_selectedStartDate!)
-            : '';
-    _selectedEndDate = _currentProcessDetails!.endDate;
-    _endDateController.text =
-        _selectedEndDate != null
-            ? DateFormat('dd/MM/yyyy').format(_selectedEndDate!)
-            : '';
-    _selectedEstado = _currentProcessDetails!.estado;
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Editar Proceso'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _processNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre del Proceso',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: _selectedStartDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedStartDate = picked;
-                            _startDateController.text = DateFormat(
-                              'dd/MM/yyyy',
-                            ).format(picked);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _startDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Fecha de Inicio',
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: dialogContext,
-                          initialDate:
-                              _selectedEndDate ??
-                              _selectedStartDate ??
-                              DateTime.now(),
-                          firstDate: _selectedStartDate ?? DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedEndDate = picked;
-                            _endDateController.text = DateFormat(
-                              'dd/MM/yyyy',
-                            ).format(picked);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _endDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Fecha de Fin',
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedEstado,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado del Proceso',
-                        border: OutlineInputBorder(),
-                      ),
-                      items:
-                          <String>[
-                            'echo',
-                            'en proceso',
-                            'pendiente',
-                          ].map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedEstado = newValue;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecciona un estado.';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancelar'),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-                TextButton(
-                  child: const Text('Guardar Cambios'),
-                  onPressed: () async {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => DashboardPage()),
-                    );
-                    final String name = _processNameController.text.trim();
-
-                    // --- Validaciones ---
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, ingresa un nombre para el proceso.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedStartDate == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona una fecha de inicio.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEndDate == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona una fecha de fin.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEndDate!.isBefore(_selectedStartDate!)) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'La fecha de fin no puede ser anterior a la fecha de inicio.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_selectedEstado == null || _selectedEstado!.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Por favor, selecciona un estado para el proceso.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-
-                    await _updateProcessInBackend(
-                      name,
-                      _selectedStartDate!,
-                      _selectedEndDate!,
-                      _selectedEstado!,
-                    );
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+  
 
   Future<void> _updateProcessInBackend(
     String nombre_proceso, // <-- Este es el nuevo nombre que el usuario ingresó
@@ -1388,18 +1173,7 @@ class _TableroScreenState extends State<TableroScreen> {
         ),
         title: GestureDetector(
           onTap: () {
-            // Asegúrate de que _currentProcessDetails esté cargado antes de intentar editar
-            if (_currentProcessDetails != null) {
-              _mostrarDialogoEditarProceso(context);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Por favor, crea o selecciona un proceso primero para editar.',
-                  ),
-                ),
-              );
-            }
+           
           },
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1413,8 +1187,7 @@ class _TableroScreenState extends State<TableroScreen> {
                     'Mi Tablero de Trello',
                 style: const TextStyle(color: Colors.black),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.edit, size: 20, color: Colors.black54),
+              
             ],
           ),
         ),
@@ -1818,19 +1591,38 @@ class _ListaTrelloState extends State<ListaTrello> {
                   child: const Text("Guardar"),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    // CORRECCIÓN CLAVE AQUÍ: Afirmar que tarjeta.id no es nulo
-                    // Si tarjeta.id puede ser nulo antes de ser guardado, considera cómo manejarlo
-                    // por ejemplo, si solo puedes eliminar tarjetas con un ID asignado.
-                    widget.onEliminarTarjeta(indexTarjeta, tarjeta.id!);
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text(
-                    "Eliminar",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
+  onPressed: () async {
+    final bool confirmar = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta tarjeta?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && context.mounted) {
+      Navigator.of(context).pop(); // Cierra el diálogo de edición
+      if (tarjeta.id != null) {
+        widget.onEliminarTarjeta(indexTarjeta, tarjeta.id!);
+      }
+    }
+  },
+  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+  child: const Text(
+    "Eliminar",
+    style: TextStyle(color: Colors.white),
+  ),
+),
               ],
             );
           },

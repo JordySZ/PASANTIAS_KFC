@@ -6,6 +6,7 @@ import 'package:login_app/super%20usario/cards/cards.dart'; // Asumo que Tablero
 import 'package:login_app/super%20usario/crud_user.dart'; // Asumo que UsuariosScreen está aquí
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
+import 'package:login_app/models/process.dart';
 
 // Modelo del proyecto
 class Project {
@@ -35,6 +36,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
   List<Project> _projects = [];
@@ -652,6 +654,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         child: DataTable(
                           columns: const [
                             DataColumn(
+                
                               label: Text(
                                 'Nombre',
                                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -682,6 +685,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
+                            
+   DataColumn(label: Text('Editar', style: TextStyle(fontWeight: FontWeight.bold))),
+
+                            
                             DataColumn(
                               label: Text(
                                 'Eliminar',
@@ -741,6 +748,19 @@ class _DashboardPageState extends State<DashboardPage> {
                                       ),
                                     ),
                                     DataCell(
+          ElevatedButton.icon(
+            onPressed: () => _showEditProjectDialog(project),
+            icon: const Icon(Icons.edit, size: 18),
+            label: const Text('Editar', style: TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueGrey[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+          ),
+        ),
+                                    DataCell(
                                       ElevatedButton.icon(
                                         onPressed: () {
                                           _confirmDeleteProcess(
@@ -784,7 +804,228 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         );
   }
+// Formatear DateTime a dd/MM/yyyy
+String _formatDateTime(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}/'
+         '${date.month.toString().padLeft(2, '0')}/'
+         '${date.year}';
+}
 
+// Parsear string ISO a dd/MM/yyyy
+String _formatDateString(String isoDate) {
+  try {
+    final date = DateTime.parse(isoDate);
+    return _formatDateTime(date);
+  } catch (e) {
+    return isoDate; // Si falla, devolver el original
+  }
+}
+
+// Parsear string dd/MM/yyyy a DateTime (para el selector)
+DateTime? _parseDateString(String dateStr) {
+  try {
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Convertir dd/MM/yyyy a string ISO
+String _parseToIsoDateString(String dateStr) {
+  try {
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      ).toIso8601String();
+    }
+    return DateTime.now().toIso8601String();
+  } catch (e) {
+    return DateTime.now().toIso8601String();
+  }
+}
+void _showEditProjectDialog(Project project) {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController(text: project.name);
+  final _statusController = TextEditingController(text: project.estado);
+  
+  // Mantenemos las fechas como strings
+  final _startDateController = TextEditingController(
+    text: project.startDate != 'N/A' ? _formatDateString(project.startDate) : '',
+  );
+  final _endDateController = TextEditingController(
+    text: project.endDate != 'N/A' ? _formatDateString(project.endDate) : '',
+  );
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Editar Proyecto'),
+        content: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Nombre del Proceso'),
+                  validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: project.estado?.toLowerCase(),
+                  items: ['pendiente', 'en proceso', 'echo']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status[0].toUpperCase() + status.substring(1)),
+                          ))
+                      .toList(),
+                  onChanged: (value) => _statusController.text = value ?? '',
+                  decoration: const InputDecoration(labelText: 'Estado'),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _startDateController,
+                  decoration: const InputDecoration(labelText: 'Fecha de Inicio'),
+                  readOnly: true,
+                  onTap: () async {
+                    // Parseamos solo para el selector de fecha
+                    final initialDate = project.startDate != 'N/A' 
+                        ? _parseDateString(project.startDate) ?? DateTime.now()
+                        : DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (date != null) {
+                      _startDateController.text = _formatDateTime(date);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _endDateController,
+                  decoration: const InputDecoration(labelText: 'Fecha de Fin'),
+                  readOnly: true,
+                  onTap: () async {
+                    // Parseamos solo para el selector de fecha
+                    final initialDate = project.endDate != 'N/A' 
+                        ? _parseDateString(project.endDate) ?? DateTime.now()
+                        : DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (date != null) {
+                      _endDateController.text = _formatDateTime(date);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState?.validate() ?? false) {
+                await _updateProject(
+                  originalName: project.name,
+                  updatedName: _nameController.text,
+                  newStatus: _statusController.text,
+                  newStartDate: _startDateController.text.isNotEmpty
+                      ? _parseToIsoDateString(_startDateController.text)
+                      : project.startDate,
+                  newEndDate: _endDateController.text.isNotEmpty
+                      ? _parseToIsoDateString(_endDateController.text)
+                      : project.endDate,
+                );
+                if (mounted) Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+Future<void> _updateProject({
+  required String originalName,
+  required String updatedName,
+  required String newStatus,
+  required String newStartDate,
+  required String newEndDate,
+}) async {
+  // 1. Cerrar el diálogo inmediatamente al inicio
+  if (mounted) Navigator.of(context).pop();
+  
+  setState(() => _isLoadingProjects = true);
+  
+  try {
+    final originalProject = _projects.firstWhere((p) => p.name == originalName);
+
+
+    final updatedProcess = Process(
+      id: null,
+      nombre_proceso: updatedName,
+      startDate: DateTime.parse(newStartDate),
+      endDate: DateTime.parse(newEndDate),
+      estado: newStatus,
+      progress: originalProject.progress,
+    );
+
+    final updated = await _apiService.updateProcess(
+      originalName,
+      updatedProcess,
+    );
+
+    if (updated != null) {
+      await _fetchProjectsData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Proceso "$updatedName" actualizado')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al actualizar el proceso')),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoadingProjects = false);
+    }
+  }
+}
   void _handleCircleTap(Offset localPos) {
     // Estas dimensiones deben coincidir con las del SizedBox en _buildPieChart
     final double widgetSize = 220; // width and height of the SizedBox

@@ -16,27 +16,34 @@ class Process {
   });
 
   // TU Process.fromJson (SIN CAMBIOS, como lo pediste):
-  factory Process.fromJson(Map<String, dynamic> json) {
-    print('FLUTTER DEBUG: Process.fromJson received JSON: $json');
-
-    return Process(
-      id: json['id'] as String? ?? json['_id'] as String?,
-      nombre_proceso:
-          (json['name'] as String?) ??
-          (json['nombre_proceso'] as String), // CORREGIDO
-      startDate: DateTime.parse(
-        json['startDate'] as String? ?? json['fechaInicio'] as String,
-      ),
-      endDate: DateTime.parse(
-        json['endDate'] as String? ?? json['fechaFin'] as String,
-      ),
-      estado:
-          json['estado'] as String? ??
-          json['status'] as String? ??
-          'Desconocido',
-      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
+ factory Process.fromJson(Map<String, dynamic> json) {
+  // Primero verifica si estamos recibiendo el objeto anidado 'proceso'
+  final data = json['proceso'] ?? json;
+  
+  return Process(
+    id: data['id']?.toString() ?? data['_id']?.toString(),
+    nombre_proceso: data['nombre_proceso']?.toString() ?? 
+                   data['nombre']?.toString() ??
+                   data['name']?.toString() ??
+                   '',
+    startDate: DateTime.parse(
+      data['startDate']?.toString() ?? 
+      data['fechaInicio']?.toString() ??
+      data['fecha_inicio']?.toString() ??
+      DateTime.now().toIso8601String()
+    ),
+    endDate: DateTime.parse(
+      data['endDate']?.toString() ?? 
+      data['fechaFin']?.toString() ??
+      data['fecha_fin']?.toString() ??
+      DateTime.now().toIso8601String()
+    ),
+    estado: data['estado']?.toString() ?? 
+            data['status']?.toString() ??
+            'pendiente', // Valor por defecto
+    progress: (data['progress'] as num?)?.toDouble() ?? 0.0,
+  );
+}
 
   // toMap (Sin cambios, asumiendo que ya funciona para enviar al backend)
   Map<String, dynamic> toMap() {
