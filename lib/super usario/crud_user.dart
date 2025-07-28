@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/super%20usario/home_page.dart';
-
 import 'package:login_app/super%20usario/cards/cards.dart';
 
 class UsuariosScreen extends StatefulWidget {
@@ -15,6 +14,15 @@ class UsuariosScreen extends StatefulWidget {
 }
 
 class _UsuariosScreenState extends State<UsuariosScreen> {
+  // Colores empresariales
+  final Color primaryColor = Colors.red[900]!;
+  final Color secondaryColor = Colors.grey[800]!;
+  final Color backgroundColor = Colors.white;
+  final Color textColor = Colors.black;
+  final Color lightGrey = Colors.grey[300]!;
+  final Color mediumGrey = Colors.grey[500]!;
+  final Color darkGrey = Colors.grey[700]!;
+
   List<dynamic> usuarios = [];
   List<dynamic> usuariosFiltrados = [];
   bool isLoading = true;
@@ -89,30 +97,27 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       if (query.isEmpty) {
         usuariosFiltrados = usuarios.take(5).toList();
       } else {
-        usuariosFiltrados =
-            usuarios.where((usuario) {
-              final nombre = (usuario['nombre'] ?? '').toString().toLowerCase();
-              final apellido =
-                  (usuario['apellido'] ?? '').toString().toLowerCase();
-              final correo = (usuario['correo'] ?? '').toString().toLowerCase();
-              final nombreCompleto = '$nombre $apellido';
+        usuariosFiltrados = usuarios.where((usuario) {
+          final nombre = (usuario['nombre'] ?? '').toString().toLowerCase();
+          final apellido = (usuario['apellido'] ?? '').toString().toLowerCase();
+          final correo = (usuario['correo'] ?? '').toString().toLowerCase();
+          final nombreCompleto = '$nombre $apellido';
 
-              bool coincidencia = false;
-              if (!buscarPorNombre && !buscarPorApellido && !buscarPorCorreo) {
-                coincidencia = nombre.contains(query);
-              } else {
-                if (buscarPorNombre && buscarPorApellido) {
-                  coincidencia = nombreCompleto.contains(query);
-                } else {
-                  if (buscarPorNombre) coincidencia |= nombre.contains(query);
-                  if (buscarPorApellido)
-                    coincidencia |= apellido.contains(query);
-                }
-                if (buscarPorCorreo) coincidencia |= correo.contains(query);
-              }
+          bool coincidencia = false;
+          if (!buscarPorNombre && !buscarPorApellido && !buscarPorCorreo) {
+            coincidencia = nombre.contains(query);
+          } else {
+            if (buscarPorNombre && buscarPorApellido) {
+              coincidencia = nombreCompleto.contains(query);
+            } else {
+              if (buscarPorNombre) coincidencia |= nombre.contains(query);
+              if (buscarPorApellido) coincidencia |= apellido.contains(query);
+            }
+            if (buscarPorCorreo) coincidencia |= correo.contains(query);
+          }
 
-              return coincidencia;
-            }).toList();
+          return coincidencia;
+        }).toList();
       }
     });
   }
@@ -120,6 +125,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   void _mostrarPanelFiltros() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: backgroundColor,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -127,12 +133,17 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Wrap(
                 children: [
-                  const Text(
+                  Text(
                     'Filtros de búsqueda',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: textColor
+                    ),
                   ),
                   CheckboxListTile(
-                    title: const Text('Nombre'),
+                    activeColor: primaryColor,
+                    title: Text('Nombre', style: TextStyle(color: textColor)),
                     value: buscarPorNombre,
                     onChanged: (val) {
                       setModalState(() {
@@ -142,7 +153,8 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     },
                   ),
                   CheckboxListTile(
-                    title: const Text('Apellido'),
+                    activeColor: primaryColor,
+                    title: Text('Apellido', style: TextStyle(color: textColor)),
                     value: buscarPorApellido,
                     onChanged: (val) {
                       setModalState(() {
@@ -152,7 +164,8 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     },
                   ),
                   CheckboxListTile(
-                    title: const Text('Correo'),
+                    activeColor: primaryColor,
+                    title: Text('Correo', style: TextStyle(color: textColor)),
                     value: buscarPorCorreo,
                     onChanged: (val) {
                       setModalState(() {
@@ -164,7 +177,11 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      minimumSize: Size(double.infinity, 50),
+                    ),
+                    child: Text('Cerrar', style: TextStyle(color: backgroundColor)),
                   ),
                 ],
               ),
@@ -175,7 +192,6 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     );
   }
 
-  // Formulario para agregar nuevo usuario con iconos
   void _mostrarFormularioAgregarUsuario() {
     final nombreController = TextEditingController();
     final apellidoController = TextEditingController();
@@ -190,20 +206,8 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? areaSeleccionada;
 
     final roles = ['Gerencia', 'Usuario', 'Supervisor'];
-    final ciudades = [
-      'Quito',
-      'Calderón',
-      'Tumbaco',
-      'Pomasqui',
-      'Centro Historico',
-    ];
-    final areas = [
-      'Ventas',
-      'Marketing',
-      'TI',
-      'Recursos Humanos',
-      'Operaciones',
-    ];
+    final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
+    final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
     showDialog(
       context: context,
@@ -215,6 +219,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
+              backgroundColor: backgroundColor,
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SingleChildScrollView(
@@ -223,35 +228,57 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Agregar Usuario',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: textColor
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: nombreController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Nombre',
-                            prefixIcon: Icon(Icons.person),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.person, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: apellidoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Apellido',
-                            prefixIcon: Icon(Icons.person_outline),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.person_outline, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: correoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Correo',
-                            prefixIcon: Icon(Icons.email),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.email, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                           keyboardType: TextInputType.emailAddress,
                         ),
@@ -262,18 +289,21 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           autofillHints: const [AutofillHints.newPassword],
                           decoration: InputDecoration(
                             labelText: 'Contraseña',
-                            prefixIcon: const Icon(Icons.lock),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.lock, color: textColor),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                verContrasena
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                verContrasena ? Icons.visibility : Icons.visibility_off,
+                                color: primaryColor,
                               ),
-                              onPressed:
-                                  () => setStateDialog(
-                                    () => verContrasena = !verContrasena,
-                                  ),
+                              onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
                             ),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -283,80 +313,88 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           autofillHints: const [AutofillHints.newPassword],
                           decoration: InputDecoration(
                             labelText: 'Confirmar contraseña',
-                            prefixIcon: const Icon(Icons.lock_outline),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.lock_outline, color: textColor),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                verConfirmacion
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                verConfirmacion ? Icons.visibility : Icons.visibility_off,
+                                color: primaryColor,
                               ),
-                              onPressed:
-                                  () => setStateDialog(
-                                    () => verConfirmacion = !verConfirmacion,
-                                  ),
+                              onPressed: () => setStateDialog(() => verConfirmacion = !verConfirmacion),
                             ),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: rolSeleccionado,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Rol',
-                            prefixIcon: Icon(Icons.badge),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.badge, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              roles
-                                  .map(
-                                    (rol) => DropdownMenuItem(
-                                      value: rol,
-                                      child: Text(rol),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) =>
-                                  setStateDialog(() => rolSeleccionado = val),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: roles.map((rol) => DropdownMenuItem(
+                            value: rol,
+                            child: Text(rol),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: ciudadSeleccionada,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Ciudad',
-                            prefixIcon: Icon(Icons.location_city),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.location_city, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              ciudades
-                                  .map(
-                                    (ciudad) => DropdownMenuItem(
-                                      value: ciudad,
-                                      child: Text(ciudad),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) => setStateDialog(
-                                () => ciudadSeleccionada = val,
-                              ),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: ciudades.map((ciudad) => DropdownMenuItem(
+                            value: ciudad,
+                            child: Text(ciudad),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: areaSeleccionada,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Área',
-                            prefixIcon: Icon(Icons.work),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.work, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              areas
-                                  .map(
-                                    (area) => DropdownMenuItem(
-                                      value: area,
-                                      child: Text(area),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) =>
-                                  setStateDialog(() => areaSeleccionada = val),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: areas.map((area) => DropdownMenuItem(
+                            value: area,
+                            child: Text(area),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
                         ),
                         const SizedBox(height: 20),
                         Row(
@@ -364,35 +402,26 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           children: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancelar'),
+                              child: Text('Cancelar', style: TextStyle(color: primaryColor)),
                             ),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.save),
-                              label: const Text('Guardar'),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                              ),
                               onPressed: () async {
                                 final nombre = nombreController.text.trim();
                                 final apellido = apellidoController.text.trim();
                                 final correo = correoController.text.trim();
-                                final contrasena =
-                                    contrasenaController.text.trim();
-                                final confirmar =
-                                    confirmarContrasenaController.text.trim();
+                                final contrasena = contrasenaController.text.trim();
+                                final confirmar = confirmarContrasenaController.text.trim();
 
-                                if ([
-                                      nombre,
-                                      apellido,
-                                      correo,
-                                      contrasena,
-                                      confirmar,
-                                    ].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null ||
-                                    ciudadSeleccionada == null ||
-                                    areaSeleccionada == null) {
+                                if ([nombre, apellido, correo, contrasena, confirmar].any((e) => e.isEmpty) ||
+                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Completa todos los campos',
-                                      ),
+                                    SnackBar(
+                                      content: Text('Completa todos los campos', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
                                     ),
                                   );
                                   return;
@@ -400,30 +429,26 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
                                 if (contrasena != confirmar) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Las contraseñas no coinciden',
-                                      ),
+                                    SnackBar(
+                                      content: Text('Las contraseñas no coinciden', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
                                     ),
                                   );
                                   return;
                                 }
 
-                                final emailValido = RegExp(
-                                  r'^[^@]+@[^@]+\.[^@]+',
-                                ).hasMatch(correo);
+                                final emailValido = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(correo);
                                 if (!emailValido) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Correo inválido'),
+                                    SnackBar(
+                                      content: Text('Correo inválido', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
                                     ),
                                   );
                                   return;
                                 }
 
-                                final url = Uri.parse(
-                                  '$baseUrl/usuarios/registro',
-                                );
+                                final url = Uri.parse('$baseUrl/usuarios/registro');
                                 final response = await http.post(
                                   url,
                                   headers: {'Content-Type': 'application/json'},
@@ -438,31 +463,30 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   }),
                                 );
 
-                                if (response.statusCode == 200 ||
-                                    response.statusCode == 201) {
+                                if (response.statusCode == 200 || response.statusCode == 201) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Usuario agregado exitosamente',
-                                      ),
+                                    SnackBar(
+                                      content: Text('Usuario agregado exitosamente', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: Colors.green[700],
                                     ),
                                   );
                                 } else {
                                   String mensaje = 'Error al guardar';
                                   try {
                                     final jsonResp = jsonDecode(response.body);
-                                    mensaje =
-                                        jsonResp['mensaje'] ??
-                                        jsonResp['error'] ??
-                                        mensaje;
+                                    mensaje = jsonResp['mensaje'] ?? jsonResp['error'] ?? mensaje;
                                   } catch (_) {}
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(mensaje)),
+                                    SnackBar(
+                                      content: Text(mensaje, style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
+                                    ),
                                   );
                                 }
                               },
+                              child: Text('Guardar', style: TextStyle(color: backgroundColor)),
                             ),
                           ],
                         ),
@@ -478,7 +502,6 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     );
   }
 
-  // Formulario para actualizar usuario con iconos
   void _mostrarFormularioActualizarUsuario(dynamic usuario) {
     final nombreController = TextEditingController(text: usuario['nombre']);
     final apellidoController = TextEditingController(text: usuario['apellido']);
@@ -490,20 +513,8 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? areaSeleccionada = usuario['area'];
 
     final roles = ['Gerencia', 'Usuario', 'Supervisor'];
-    final ciudades = [
-      'Quito',
-      'Calderón',
-      'Tumbaco',
-      'Pomasqui',
-      'Centro Historico',
-    ];
-    final areas = [
-      'Ventas',
-      'Marketing',
-      'TI',
-      'Recursos Humanos',
-      'Operaciones',
-    ];
+    final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
+    final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
     bool verContrasena = false;
 
@@ -517,6 +528,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
+              backgroundColor: backgroundColor,
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SingleChildScrollView(
@@ -525,35 +537,57 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Actualizar Usuario',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: textColor
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: nombreController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Nombre',
-                            prefixIcon: Icon(Icons.person),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.person, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: apellidoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Apellido',
-                            prefixIcon: Icon(Icons.person_outline),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.person_outline, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: correoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Correo',
-                            prefixIcon: Icon(Icons.email),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.email, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                           keyboardType: TextInputType.emailAddress,
                         ),
@@ -564,80 +598,88 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           autofillHints: const [AutofillHints.newPassword],
                           decoration: InputDecoration(
                             labelText: 'Nueva Contraseña (opcional)',
-                            prefixIcon: const Icon(Icons.lock),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.lock, color: textColor),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                verContrasena
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                verContrasena ? Icons.visibility : Icons.visibility_off,
+                                color: primaryColor,
                               ),
-                              onPressed:
-                                  () => setStateDialog(
-                                    () => verContrasena = !verContrasena,
-                                  ),
+                              onPressed: () => setStateDialog(() => verContrasena = !verContrasena),
                             ),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: rolSeleccionado,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Rol',
-                            prefixIcon: Icon(Icons.badge),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.badge, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              roles
-                                  .map(
-                                    (rol) => DropdownMenuItem(
-                                      value: rol,
-                                      child: Text(rol),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) =>
-                                  setStateDialog(() => rolSeleccionado = val),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: roles.map((rol) => DropdownMenuItem(
+                            value: rol,
+                            child: Text(rol),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: ciudadSeleccionada,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Ciudad',
-                            prefixIcon: Icon(Icons.location_city),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.location_city, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              ciudades
-                                  .map(
-                                    (ciudad) => DropdownMenuItem(
-                                      value: ciudad,
-                                      child: Text(ciudad),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) => setStateDialog(
-                                () => ciudadSeleccionada = val,
-                              ),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: ciudades.map((ciudad) => DropdownMenuItem(
+                            value: ciudad,
+                            child: Text(ciudad),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => ciudadSeleccionada = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           value: areaSeleccionada,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Área',
-                            prefixIcon: Icon(Icons.work),
+                            labelStyle: TextStyle(color: darkGrey),
+                            prefixIcon: Icon(Icons.work, color: textColor),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor),
+                            ),
+                            filled: true,
+                            fillColor: backgroundColor,
                           ),
-                          items:
-                              areas
-                                  .map(
-                                    (area) => DropdownMenuItem(
-                                      value: area,
-                                      child: Text(area),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) =>
-                                  setStateDialog(() => areaSeleccionada = val),
+                          dropdownColor: backgroundColor,
+                          style: TextStyle(color: textColor),
+                          items: areas.map((area) => DropdownMenuItem(
+                            value: area,
+                            child: Text(area),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => areaSeleccionada = val),
                         ),
                         const SizedBox(height: 20),
                         Row(
@@ -645,43 +687,36 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                           children: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancelar'),
+                              child: Text('Cancelar', style: TextStyle(color: primaryColor)),
                             ),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.save),
-                              label: const Text('Actualizar'),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                              ),
                               onPressed: () async {
                                 final nombre = nombreController.text.trim();
                                 final apellido = apellidoController.text.trim();
                                 final correo = correoController.text.trim();
-                                final contrasena =
-                                    contrasenaController.text.trim();
+                                final contrasena = contrasenaController.text.trim();
 
-                                if ([
-                                      nombre,
-                                      apellido,
-                                      correo,
-                                    ].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null ||
-                                    ciudadSeleccionada == null ||
-                                    areaSeleccionada == null) {
+                                if ([nombre, apellido, correo].any((e) => e.isEmpty) ||
+                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Completa todos los campos',
-                                      ),
+                                    SnackBar(
+                                      content: Text('Completa todos los campos', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
                                     ),
                                   );
                                   return;
                                 }
 
-                                final emailValido = RegExp(
-                                  r'^[^@]+@[^@]+\.[^@]+',
-                                ).hasMatch(correo);
+                                final emailValido = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(correo);
                                 if (!emailValido) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Correo inválido'),
+                                    SnackBar(
+                                      content: Text('Correo inválido', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
                                     ),
                                   );
                                   return;
@@ -699,9 +734,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   body['contraseña'] = contrasena;
                                 }
 
-                                final url = Uri.parse(
-                                  '$baseUrl/usuarios/${usuario["_id"]}',
-                                );
+                                final url = Uri.parse('$baseUrl/usuarios/${usuario["_id"]}');
                                 final response = await http.put(
                                   url,
                                   headers: {'Content-Type': 'application/json'},
@@ -712,24 +745,26 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Usuario actualizado'),
+                                    SnackBar(
+                                      content: Text('Usuario actualizado', style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: Colors.green[700],
                                     ),
                                   );
                                 } else {
                                   String mensaje = 'Error al actualizar';
                                   try {
                                     final jsonResp = jsonDecode(response.body);
-                                    mensaje =
-                                        jsonResp['mensaje'] ??
-                                        jsonResp['error'] ??
-                                        mensaje;
+                                    mensaje = jsonResp['mensaje'] ?? jsonResp['error'] ?? mensaje;
                                   } catch (_) {}
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(mensaje)),
+                                    SnackBar(
+                                      content: Text(mensaje, style: TextStyle(color: backgroundColor)),
+                                      backgroundColor: primaryColor,
+                                    ),
                                   );
                                 }
                               },
+                              child: Text('Actualizar', style: TextStyle(color: backgroundColor)),
                             ),
                           ],
                         ),
@@ -748,27 +783,24 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   void _confirmarEliminacion(String id) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Eliminar usuario'),
-            content: const Text('¿Estás seguro de eliminar este usuario?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _eliminarUsuario(id);
-                },
-                child: const Text(
-                  'Eliminar',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        backgroundColor: backgroundColor,
+        title: Text('Eliminar usuario', style: TextStyle(color: primaryColor)),
+        content: Text('¿Estás seguro de eliminar este usuario?', style: TextStyle(color: textColor)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
           ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _eliminarUsuario(id);
+            },
+            child: Text('Eliminar', style: TextStyle(color: primaryColor)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -781,18 +813,27 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
           usuarios.removeWhere((u) => u['_id'] == id);
           usuariosFiltrados.removeWhere((u) => u['_id'] == id);
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Usuario eliminado')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Usuario eliminado', style: TextStyle(color: backgroundColor)),
+            backgroundColor: Colors.green[700],
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al eliminar usuario')),
+          SnackBar(
+            content: Text('Error al eliminar usuario', style: TextStyle(color: backgroundColor)),
+            backgroundColor: primaryColor,
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e', style: TextStyle(color: backgroundColor)),
+          backgroundColor: primaryColor,
+        ),
+      );
     }
   }
 
@@ -802,32 +843,35 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     final correo = usuario['correo'] ?? '';
     final id = usuario['_id'];
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.blue,
-        child: Text(
-          (nombre.isNotEmpty && apellido.isNotEmpty)
-              ? '${nombre[0]}${apellido[0]}'.toUpperCase()
-              : '?',
-          style: const TextStyle(color: Colors.white),
+    return Container(
+      color: backgroundColor,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: primaryColor,
+          child: Text(
+            (nombre.isNotEmpty && apellido.isNotEmpty)
+                ? '${nombre[0]}${apellido[0]}'.toUpperCase()
+                : '?',
+            style: TextStyle(color: backgroundColor),
+          ),
         ),
-      ),
-      title: Text('$nombre $apellido'),
-      subtitle: Text(correo),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.green),
-            tooltip: 'Actualizar usuario',
-            onPressed: () => _mostrarFormularioActualizarUsuario(usuario),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            tooltip: 'Eliminar usuario',
-            onPressed: () => _confirmarEliminacion(id),
-          ),
-        ],
+        title: Text('$nombre $apellido', style: TextStyle(color: textColor)),
+        subtitle: Text(correo, style: TextStyle(color: darkGrey)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit, color: primaryColor),
+              tooltip: 'Actualizar usuario',
+              onPressed: () => _mostrarFormularioActualizarUsuario(usuario),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete, color: primaryColor),
+              tooltip: 'Eliminar usuario',
+              onPressed: () => _confirmarEliminacion(id),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -835,12 +879,17 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: lightGrey,
       appBar: AppBar(
-        title: const Text('Usuarios'),
+        backgroundColor: primaryColor,
+        title: Text('Usuarios', style: TextStyle(color: backgroundColor)),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: fetchUsuarios),
           IconButton(
-            icon: const Icon(Icons.filter_alt),
+            icon: Icon(Icons.refresh, color: backgroundColor), 
+            onPressed: fetchUsuarios
+          ),
+          IconButton(
+            icon: Icon(Icons.filter_alt, color: backgroundColor),
             onPressed: _mostrarPanelFiltros,
           ),
         ],
@@ -859,53 +908,56 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => TableroScreen()),
+              MaterialPageRoute(builder: (_) => TableroScreen( )),
             );
           }
         },
       ),
       body: Center(
-        child:
-            isLoading
-                ? const CircularProgressIndicator()
-                : errorMessage != null
-                ? Text(errorMessage!, style: const TextStyle(color: Colors.red))
+        child: isLoading
+            ? CircularProgressIndicator(color: primaryColor)
+            : errorMessage != null
+                ? Text(errorMessage!, style: TextStyle(color: primaryColor))
                 : Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: TextField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Buscar',
+                          labelStyle: TextStyle(color: textColor),
                           border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.search),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: primaryColor),
+                          ),
+                          prefixIcon: Icon(Icons.search, color: primaryColor),
+                          filled: true,
+                          fillColor: backgroundColor,
                         ),
                       ),
                     ),
                     Expanded(
-                      child:
-                          usuariosFiltrados.isEmpty
-                              ? const Center(
-                                child: Text(
-                                  'No hay usuarios registrados que coincidan con la búsqueda.',
-                                ),
-                              )
-                              : ListView.separated(
-                                itemCount: usuariosFiltrados.length,
-                                separatorBuilder: (_, __) => const Divider(),
-                                itemBuilder:
-                                    (_, index) => buildUsuarioItem(
-                                      usuariosFiltrados[index],
-                                    ),
-                              ),
+                      child: usuariosFiltrados.isEmpty
+                          ? Center(
+                            child: Text(
+                              'No hay usuarios registrados que coincidan con la búsqueda.',
+                              style: TextStyle(color: textColor),
+                            ),
+                          )
+                          : ListView.separated(
+                            separatorBuilder: (_, __) => Divider(color: mediumGrey),
+                            itemCount: usuariosFiltrados.length,
+                            itemBuilder: (_, index) => buildUsuarioItem(usuariosFiltrados[index]),
+                          ),
                     ),
                   ],
                 ),
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: primaryColor,
         onPressed: _mostrarFormularioAgregarUsuario,
-        child: const Icon(Icons.add),
+        child: Icon(Icons.add, color: backgroundColor),
         tooltip: 'Agregar nuevo usuario',
       ),
     );

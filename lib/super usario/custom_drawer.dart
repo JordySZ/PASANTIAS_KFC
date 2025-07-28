@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../login/login.dart'; // Importación relativa ajustada a tu estructura
+import '../../login/login.dart';
 
 class CustomDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -11,11 +11,20 @@ class CustomDrawer extends StatelessWidget {
     required this.onItemTap,
   }) : super(key: key);
 
+  // Colores empresariales
+  final Color primaryColor = Colors.red[900]!;
+  final Color secondaryColor = Colors.grey[800]!;
+  final Color backgroundColor = Colors.white;
+  final Color textColor = Colors.black;
+  final Color lightGrey = Colors.grey[300]!;
+  final Color mediumGrey = Colors.grey[500]!;
+  final Color darkGrey = Colors.grey[700]!;
+
   final List<String> _titles = [
     'Inicio',
     'Usuarios',
     'Crear nuevo procesos',
-    'Cerrar sesión', // Nuevo ítem
+    'Cerrar sesión',
   ];
 
   final List<IconData> _icons = [
@@ -31,10 +40,17 @@ class CustomDrawer extends StatelessWidget {
     return Drawer(
       child: Column(
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
+          DrawerHeader(
+            decoration: BoxDecoration(color: primaryColor),
             child: Center(
-              child: Text('Menú', style: TextStyle(color: Colors.white, fontSize: 24)),
+              child: Text(
+                'Menú', 
+                style: TextStyle(
+                  color: backgroundColor, 
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold
+                )
+              ),
             ),
           ),
           Expanded(
@@ -45,21 +61,42 @@ class CustomDrawer extends StatelessWidget {
                   ListTile(
                     leading: Icon(
                       _icons[i],
-                      color: selectedIndex == i ? Colors.blue : Colors.grey[700],
+                      color: selectedIndex == i 
+                          ? primaryColor 
+                          : secondaryColor,
                     ),
-                    title: Text(_titles[i]),
+                    title: Text(
+                      _titles[i],
+                      style: TextStyle(
+                        color: selectedIndex == i 
+                            ? primaryColor 
+                            : secondaryColor,
+                        fontWeight: selectedIndex == i 
+                            ? FontWeight.bold 
+                            : FontWeight.normal,
+                      ),
+                    ),
                     selected: selectedIndex == i,
-                    selectedTileColor: Colors.blue[50],
+                    selectedTileColor: lightGrey,
                     onTap: () => onItemTap(i),
                   ),
               ],
             ),
           ),
           ListTile(
-            leading: Icon(Icons.exit_to_app, color: Colors.grey[700]),
-            title: Text(_titles.last),
+            leading: Icon(
+              Icons.exit_to_app, 
+              color: secondaryColor
+            ),
+            title: Text(
+              _titles.last, 
+              style: TextStyle(
+                color: secondaryColor,
+                fontWeight: FontWeight.w500
+              )
+            ),
             onTap: () {
-              Navigator.pop(context); // Cierra el drawer
+              Navigator.pop(context);
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen1()),

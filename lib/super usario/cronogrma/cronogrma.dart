@@ -4,7 +4,6 @@ import 'package:login_app/super%20usario/models/task.dart';
 import 'package:login_app/super%20usario/widgets/timeline_painter.dart';
 import 'package:login_app/super%20usario/widgets/timeline_header_painter.dart';
 
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -77,10 +76,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
       _minDate = DateTime.now().subtract(const Duration(days: 7));
       _maxDate = DateTime.now().add(const Duration(days: 14));
     } else {
-      _minDate =
-          tasks.map((t) => t.startDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      _maxDate =
-          tasks.map((t) => t.endDate).reduce((a, b) => a.isAfter(b) ? a : b);
+      _minDate = tasks
+          .map((t) => t.startDate)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      _maxDate = tasks
+          .map((t) => t.endDate)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
       _minDate = _minDate.subtract(const Duration(days: 5));
       _maxDate = _maxDate.add(const Duration(days: 15));
     }
@@ -108,14 +109,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
     final double contentHeight = tasks.length * rowHeight;
 
     final double dateHeaderHeight = 40.0;
-    final double totalScrollableHeight = dateHeaderHeight + contentHeight;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cronograma Amigable',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold)), // Estilo para el título
+        title: const Text(
+          'Cronograma Amigable',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ), // Estilo para el título
         actions: [
           IconButton(
             icon: const Icon(Icons.today, color: Colors.white), // Icono blanco
@@ -133,8 +133,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: Colors.lightBlue.shade100, // Fondo más suave
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(15.0)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(15.0),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -150,13 +151,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     Container(
                       width: taskNameColumnWidth,
                       decoration: BoxDecoration(
-                        color: Colors.lightBlue
-                            .shade200, // Color de fondo más distintivo
+                        color:
+                            Colors
+                                .lightBlue
+                                .shade200, // Color de fondo más distintivo
                         borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(15.0)),
+                          topLeft: Radius.circular(15.0),
+                        ),
                         border: Border(
-                            right: BorderSide(
-                                color: Colors.lightBlue.shade300!, width: 1.0)),
+                          right: BorderSide(
+                            color: Colors.lightBlue.shade300,
+                            width: 1.0,
+                          ),
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -199,10 +206,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(15.0)),
+                          bottomLeft: Radius.circular(15.0),
+                        ),
                         border: Border(
-                            right: BorderSide(
-                                color: Colors.grey.shade200!, width: 1.0)),
+                          right: BorderSide(
+                            color: Colors.grey.shade200,
+                            width: 1.0,
+                          ),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.03),
@@ -221,13 +232,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           final task = tasks[index];
                           return Container(
                             height: rowHeight,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12.0,
+                            ),
                             alignment: Alignment.centerLeft,
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                    color: Colors.grey.shade100, width: 1.0),
+                                  color: Colors.grey.shade100,
+                                  width: 1.0,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -253,7 +267,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white, // Fondo del cronograma
                               borderRadius: const BorderRadius.only(
-                                  bottomRight: Radius.circular(15.0)),
+                                bottomRight: Radius.circular(15.0),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.03),

@@ -6,6 +6,15 @@ import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
 
+// Colores modificados según solicitud
+final Color primaryColor = const Color.fromARGB(255, 183, 28, 28); // Rojo del primer código
+final Color secondaryColor = Colors.white; // Fondo de tarjetas blanco
+final Color backgroundColor = const Color(0xFFf5f5f5); // Fondo gris claro
+final Color textColor = Colors.black; // Textos en negro
+final Color lightGrey = const Color(0xFFe0e0e0); // Gris claro
+final Color mediumGrey = const Color(0xFF9e9e9e); // Gris medio
+final Color darkGrey = const Color(0xFF616161); // Gris oscuro
+
 class KanbanTaskManager extends StatefulWidget {
   final String? processName;
 
@@ -98,9 +107,9 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
       case 'en_progreso':
         return Colors.orange;
       case 'pendiente':
-        return Colors.red;
+        return primaryColor; // Usamos el rojo principal
       default:
-        return Colors.grey;
+        return mediumGrey;
     }
   }
 
@@ -109,14 +118,14 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF2D2F3A),
+          backgroundColor: secondaryColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           title: Text(
             card['titulo'] ?? 'Sin título',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -125,58 +134,31 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if ((card['descripcion'] ?? '').isNotEmpty) ...[
-                  _buildDetailRow(
-                    Icons.description,
-                    "Descripción",
-                    card['descripcion'],
-                  ),
-                  const Divider(color: Colors.white24),
+                  _buildDetailRow(Icons.description, "Descripción", card['descripcion']),
+                  Divider(color: lightGrey),
                 ],
-                _buildDetailRow(
-                  Icons.person,
-                  "Asignado a",
-                  card['miembro'] ?? "N/A",
-                ),
-                const Divider(color: Colors.white24),
-                _buildDetailRow(
-                  Icons.flag,
-                  "Estado",
-                  (card['estado'] ?? 'N/A').toString().replaceAll('', ' '),
-                ),
-                const Divider(color: Colors.white24),
+                _buildDetailRow(Icons.person, "Asignado a", card['miembro'] ?? "N/A"),
+                Divider(color: lightGrey),
+                _buildDetailRow(Icons.flag, "Estado", (card['estado'] ?? 'N/A').toString().replaceAll('', ' ')),
+                Divider(color: lightGrey),
                 if (card['fechaInicio'] != null)
-                  _buildDetailRow(
-                    Icons.play_arrow,
-                    "Fecha de Inicio",
-                    DateFormat.yMMMMd(
-                      'es_ES',
-                    ).format(DateTime.parse(card['fechaInicio']).toLocal()),
-                  ),
+                  _buildDetailRow(Icons.play_arrow, "Fecha de Inicio",
+                      DateFormat.yMMMMd('es_ES').format(DateTime.parse(card['fechaInicio']).toLocal())),
                 if (card['fechaVencimiento'] != null)
-                  _buildDetailRow(
-                    Icons.event_busy,
-                    "Fecha de Vencimiento",
-                    DateFormat.yMMMMd('es_ES').format(
-                      DateTime.parse(card['fechaVencimiento']).toLocal(),
-                    ),
-                  ),
+                  _buildDetailRow(Icons.event_busy, "Fecha de Vencimiento",
+                      DateFormat.yMMMMd('es_ES').format(DateTime.parse(card['fechaVencimiento']).toLocal())),
                 if (card['fechaCompletado'] != null)
-                  _buildDetailRow(
-                    Icons.check_circle,
-                    "Fecha de Finalización",
-                    DateFormat.yMMMMd(
-                      'es_ES',
-                    ).format(DateTime.parse(card['fechaCompletado']).toLocal()),
-                  ),
+                  _buildDetailRow(Icons.check_circle, "Fecha de Finalización",
+                      DateFormat.yMMMMd('es_ES').format(DateTime.parse(card['fechaCompletado']).toLocal())),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 "Cerrar",
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
             ),
           ],
@@ -191,20 +173,14 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.tealAccent, size: 20),
+          Icon(icon, color: primaryColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(content, style: const TextStyle(color: Colors.white)),
+                Text(title, style: TextStyle(color: darkGrey, fontWeight: FontWeight.bold)),
+                Text(content, style: TextStyle(color: textColor)),
               ],
             ),
           ),
@@ -215,365 +191,387 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredTasks =
-        estadoFiltro == null
-            ? tasks
-            : tasks
-                .where((task) => task['estado']?.toLowerCase() == estadoFiltro)
-                .toList();
+    final filteredTasks = estadoFiltro == null
+        ? tasks
+        : tasks.where((task) => task['estado']?.toLowerCase() == estadoFiltro).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2D),
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: primaryColor,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Redirige al tablero del proceso actual usando el processName correcto
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => TableroScreen(processName: widget.processName),
+                builder: (_) => TableroScreen(processName: widget.processName,),
               ),
             );
           },
         ),
-        title: Text(("Tablas"), style: TextStyle(color: Colors.white)),
+        title: Text("Tablas", style: TextStyle(color: Colors.white)),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.menu),
+            icon: Icon(Icons.menu, color: Colors.white),
             onSelected: (String value) {
               if (value == 'cronograma') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            PlannerScreen(processName: widget.processName),
+                    builder: (context) => PlannerScreen(processName: widget.processName),
                   ),
                 );
               } else if (value == 'panel') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            PanelTrello(processName: widget.processName),
+                    builder: (context) => PanelTrello(processName: widget.processName),
                   ),
                 );
               } else if (value == 'tablas') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            KanbanTaskManager(processName: widget.processName),
+                    builder: (context) => KanbanTaskManager(processName: widget.processName),
                   ),
                 );
               }
             },
-            itemBuilder:
-                (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'cronograma',
-                    child: Text('Cronograma'),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'tablas',
-                    child: Text('Tablas'),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'panel',
-                    child: Text('Panel'),
-                  ),
-                ],
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'cronograma',
+                child: Text('Cronograma', style: TextStyle(color: textColor)),
+              ),
+              PopupMenuItem<String>(
+                value: 'tablas',
+                child: Text('Tablas', style: TextStyle(color: textColor)),
+              ),
+              PopupMenuItem<String>(
+                value: 'panel',
+                child: Text('Panel', style: TextStyle(color: textColor)),
+              ),
+            ],
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                DropdownButton<String?>(
-                  value: estadoFiltro,
-                  dropdownColor: const Color(0xFF2C2C3E),
-                  hint: const Text(
-                    'Filtrar por estado',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  items: const [
-                    DropdownMenuItem<String?>(
-                      value: null,
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    DropdownButton<String?>(
+                      value: estadoFiltro,
+                      dropdownColor: secondaryColor,
+                      hint: Text('Filtrar por estado', style: TextStyle(color: darkGrey)),
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Todos', style: TextStyle(color: textColor)),
+                        ),
+                        DropdownMenuItem<String?>(
+                          value: 'pendiente',
+                          child: Text('Pendiente', style: TextStyle(color: primaryColor)),
+                        ),
+                        DropdownMenuItem<String?>(
+                          value: 'en_progreso',
+                          child: Text('En Progreso', style: TextStyle(color: Colors.orange)),
+                        ),
+                        DropdownMenuItem<String?>(
+                          value: 'hecho',
+                          child: Text('Hecho', style: TextStyle(color: Colors.green)),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          estadoFiltro = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: secondaryColor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
                       child: Text(
-                        'Todos',
-                        style: TextStyle(color: Colors.white),
+                        'Tarjeta',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    DropdownMenuItem<String?>(
-                      value: 'pendiente',
+                    Expanded(
+                      flex: 2,
                       child: Text(
-                        'Pendiente',
-                        style: TextStyle(color: Colors.redAccent),
+                        'Miembro',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    DropdownMenuItem<String?>(
-                      value: 'en_progreso',
+                    Expanded(
+                      flex: 2,
                       child: Text(
-                        'En Progreso',
-                        style: TextStyle(color: Colors.orangeAccent),
+                        'Etiqueta',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    DropdownMenuItem<String?>(
-                      value: 'hecho',
+                    Expanded(
+                      flex: 3,
                       child: Text(
-                        'Hecho',
-                        style: TextStyle(color: Colors.greenAccent),
+                        'Fecha Inicio → Fecha Entrega',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Acciones',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      estadoFiltro = value;
-                    });
-                  },
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2C2C3E),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: const [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'Tarjeta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                // Lista eliminada
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Miembro',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Etiqueta',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'Fecha Inicio → Fecha Entrega',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Acciones',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: filteredTasks.length,
-              itemBuilder: (context, index) {
-                final t = filteredTasks[index];
-                final titulo = t['titulo'] ?? 'Sin título';
-                final estado = t['estado'] ?? 'Ninguno';
-                final miembro = t['miembro'] ?? 'Sin asignar';
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filteredTasks.length,
+                  itemBuilder: (context, index) {
+                    final t = filteredTasks[index];
+                    final titulo = t['titulo'] ?? 'Sin título';
+                    final estado = t['estado'] ?? 'Ninguno';
+                    final miembro = t['miembro'] ?? 'Sin asignar';
 
-                final fechaInicioRaw = t['fechaInicio'];
-                final fechaFinRaw = t['fechaVencimiento'];
+                    final fechaInicioRaw = t['fechaInicio'];
+                    final fechaFinRaw = t['fechaVencimiento'];
 
-                String fechas = 'Sin fecha';
-                if (fechaInicioRaw != null || fechaFinRaw != null) {
-                  final inicio =
-                      fechaInicioRaw != null
+                    String fechas = 'Sin fecha';
+                    if (fechaInicioRaw != null || fechaFinRaw != null) {
+                      final inicio = fechaInicioRaw != null
                           ? DateTime.tryParse(fechaInicioRaw)?.toLocal()
                           : null;
-                  final fin =
-                      fechaFinRaw != null
+                      final fin = fechaFinRaw != null
                           ? DateTime.tryParse(fechaFinRaw)?.toLocal()
                           : null;
 
-                  final formato =
-                      (DateTime dt) =>
+                      final formato = (DateTime dt) =>
                           '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
 
-                  final inicioStr = inicio != null ? formato(inicio) : '¿?';
-                  final finStr = fin != null ? formato(fin) : '¿?';
+                      final inicioStr = inicio != null ? formato(inicio) : '¿?';
+                      final finStr = fin != null ? formato(fin) : '¿?';
 
-                  fechas = '$inicioStr → $finStr';
-                }
+                      fechas = '$inicioStr → $finStr';
+                    }
 
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C3E),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: GestureDetector(
-                          onTap: () => _showTaskDetailsDialog(t),
-                          child: Text(
-                            titulo,
-                            style: const TextStyle(
-                              color: Colors.lightBlueAccent,
-                              decoration: TextDecoration.underline,
-                            ),
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: secondaryColor,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
                           ),
-                        ),
+                        ],
                       ),
-                      // Lista eliminada
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          miembro,
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: () {
-                            final current = estado.toLowerCase();
-                            String nuevo = 'pendiente';
-                            if (current == 'pendiente')
-                              nuevo = 'en_progreso';
-                            else if (current == 'en_progreso')
-                              nuevo = 'hecho';
-                            updateTask(t['_id'], nuevo);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _estadoColor(estado).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              estado,
-                              style: TextStyle(
-                                color: _estadoColor(estado),
-                                fontWeight: FontWeight.bold,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: GestureDetector(
+                              onTap: () => _showTaskDetailsDialog(t),
+                              child: Text(
+                                titulo,
+                                style: TextStyle(
+                                  color: textColor,
+                                  decoration: TextDecoration.underline,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(miembro, style: TextStyle(color: textColor)),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: GestureDetector(
+                              onTap: () {
+                                final current = estado.toLowerCase();
+                                String nuevo = 'pendiente';
+                                if (current == 'pendiente')
+                                  nuevo = 'en_progreso';
+                                else if (current == 'en_progreso')
+                                  nuevo = 'hecho';
+                                updateTask(t['_id'], nuevo);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _estadoColor(estado).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  estado,
+                                  style: TextStyle(
+                                    color: _estadoColor(estado),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Text(fechas, style: TextStyle(color: textColor)),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: primaryColor,
+                                  ),
+                                  onPressed: () => deleteTask(t['_id']),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          fechas,
-                          style: const TextStyle(color: Colors.white70),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // Formulario de agregar tarea
+          if (showAddForm)
+            Center(
+              child: Card(
+                color: secondaryColor,
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: 350,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Nueva Tarjeta',
+                          style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Row(
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Título de la tarea',
+                            labelStyle: TextStyle(color: darkGrey),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(),
+                          ),
+                          style: TextStyle(color: textColor),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: statusController,
+                          decoration: InputDecoration(
+                            labelText: 'Estado inicial (pendiente, en_progreso, hecho)',
+                            labelStyle: TextStyle(color: darkGrey),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(),
+                          ),
+                          style: TextStyle(color: textColor),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
+                            ElevatedButton(
+                              onPressed: () {
+                                final titulo = titleController.text.trim();
+                                final estado = statusController.text.trim();
+                                const idLista = '64f9aa8f8a8a8a8a8a8a8a8a';
+                                if (titulo.isNotEmpty && estado.isNotEmpty) {
+                                  addTask(titulo, estado, idLista);
+                                  titleController.clear();
+                                  statusController.clear();
+                                  setState(() => showAddForm = false);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
                               ),
-                              onPressed: () => deleteTask(t['_id']),
+                              child: const Text('Agregar tarea'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                titleController.clear();
+                                statusController.clear();
+                                setState(() => showAddForm = false);
+                              },
+                              child: Text(
+                                'Cancelar',
+                                style: TextStyle(color: darkGrey),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          if (showAddForm)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Título de la tarea',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Color(0xFF2C2C3E),
+                      ],
                     ),
-                    style: const TextStyle(color: Colors.white),
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: statusController,
-                    decoration: const InputDecoration(
-                      labelText:
-                          'Estado inicial (pendiente, en_progreso, hecho)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Color(0xFF2C2C3E),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      final titulo = titleController.text.trim();
-                      final estado = statusController.text.trim();
-                      const idLista =
-                          '64f9aa8f8a8a8a8a8a8a8a8a'; // cambia por ID real
-                      if (titulo.isNotEmpty && estado.isNotEmpty) {
-                        addTask(titulo, estado, idLista);
-                        titleController.clear();
-                        statusController.clear();
-                        setState(() => showAddForm = false);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                    ),
-                    child: const Text('Agregar tarea'),
-                  ),
-                ],
+                ),
               ),
             ),
         ],
@@ -616,9 +614,9 @@ class _ExpandableFabState extends State<ExpandableFab>
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: FloatingActionButton.extended(
               heroTag: 'addTarjeta',
-              icon: const Icon(Icons.post_add),
-              label: const Text('Tarjeta'),
-              backgroundColor: Colors.teal,
+              icon: Icon(Icons.post_add, color: Colors.white),
+              label: Text('Tarjeta', style: TextStyle(color: Colors.white)),
+              backgroundColor: primaryColor,
               onPressed: () {
                 widget.onAddTarjeta();
                 setState(() => _open = false);
@@ -627,8 +625,8 @@ class _ExpandableFabState extends State<ExpandableFab>
           ),
         FloatingActionButton(
           heroTag: 'main',
-          child: Icon(_open ? Icons.close : Icons.add),
-          backgroundColor: Colors.teal.shade700,
+          child: Icon(_open ? Icons.close : Icons.add, color: Colors.white),
+          backgroundColor: primaryColor,
           onPressed: () => setState(() => _open = !_open),
         ),
       ],

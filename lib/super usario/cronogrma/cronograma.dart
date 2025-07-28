@@ -7,16 +7,13 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-// --- Importa tus modelos y servicios ---
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/tarjeta.dart';
 
-// Normaliza un DateTime a medianoche en UTC para evitar problemas de zona horaria
 DateTime normalizeDate(DateTime date) {
   return DateTime.utc(date.year, date.month, date.day);
 }
 
-// --- PARTE 1: El Widget Principal (StatefulWidget) ---
 class PlannerScreen extends StatefulWidget {
   final String? processName;
 
@@ -26,16 +23,12 @@ class PlannerScreen extends StatefulWidget {
   State<PlannerScreen> createState() => _PlannerScreenState();
 }
 
-// --- PARTE 2: La Clase de Estado (Contiene toda la lógica) ---
 class _PlannerScreenState extends State<PlannerScreen> {
   final ApiService _apiService = ApiService();
-
-  // Estado del calendario
   late Map<DateTime, List<Tarjeta>> _events;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.month;
-
   final Map<String, Color> _memberColors = {};
 
   @override
@@ -81,6 +74,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al cargar las tareas: ${e.toString()}'),
+            backgroundColor: Colors.red[800],
           ),
         );
       }
@@ -94,72 +88,64 @@ class _PlannerScreenState extends State<PlannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1F25),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: const Color(0xFF1E1F25),
+        backgroundColor: Colors.red[800],
         elevation: 0,
         title: _buildHeader(),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Redirige al tablero del proceso actual usando el processName correcto
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => TableroScreen(processName: widget.processName),
+                builder: (_) => TableroScreen(processName: widget.processName,),
               ),
             );
           },
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.menu),
+            icon: Icon(Icons.menu, color: Colors.white),
             onSelected: (String value) {
               if (value == 'cronograma') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            PlannerScreen(processName: widget.processName),
+                    builder: (context) => PlannerScreen(processName: widget.processName),
                   ),
                 );
               } else if (value == 'panel') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            PanelTrello(processName: widget.processName),
+                    builder: (context) => PanelTrello(processName: widget.processName),
                   ),
                 );
               } else if (value == 'tablas') {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            KanbanTaskManager(processName: widget.processName),
+                    builder: (context) => KanbanTaskManager(processName: widget.processName),
                   ),
                 );
               }
             },
-            itemBuilder:
-                (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'cronograma',
-                    child: Text('Cronograma'),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'tablas',
-                    child: Text('Tablas'),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'panel',
-                    child: Text('Panel'),
-                  ),
-                ],
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'cronograma',
+                child: Text('Cronograma'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'tablas',
+                child: Text('Tablas'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'panel',
+                child: Text('Panel'),
+              ),
+            ],
           ),
         ],
       ),
@@ -184,11 +170,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
           _focusedDay = focusedDay;
         },
         headerVisible: false,
-        daysOfWeekStyle: const DaysOfWeekStyle(
-          weekdayStyle: TextStyle(color: Colors.white54),
-          weekendStyle: TextStyle(color: Colors.white54),
+        daysOfWeekStyle: DaysOfWeekStyle(
+          weekdayStyle: TextStyle(color: Colors.grey[800]),
+          weekendStyle: TextStyle(color: Colors.grey[800]),
         ),
-        calendarStyle: const CalendarStyle(
+        calendarStyle: CalendarStyle(
           outsideDaysVisible: false,
           defaultTextStyle: TextStyle(color: Colors.white),
           weekendTextStyle: TextStyle(color: Colors.white),
@@ -197,7 +183,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             fontWeight: FontWeight.bold,
           ),
           todayDecoration: BoxDecoration(
-            color: Color(0xFF005FFF),
+            color: Colors.red[700],
             shape: BoxShape.circle,
           ),
           selectedTextStyle: TextStyle(
@@ -205,23 +191,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
             fontWeight: FontWeight.bold,
           ),
           selectedDecoration: BoxDecoration(
-            color: Color(0xFF528EFF),
+            color: Colors.red[600],
             shape: BoxShape.circle,
           ),
         ),
         calendarBuilders: CalendarBuilders(
-          markerBuilder: (context, date, events) {
-            return Container();
-          },
-          defaultBuilder:
-              (context, date, events) =>
-                  _buildDayCell(date, _getEventsForDay(date)),
-          todayBuilder:
-              (context, date, events) =>
-                  _buildDayCell(date, _getEventsForDay(date), isToday: true),
-          selectedBuilder:
-              (context, date, events) =>
-                  _buildDayCell(date, _getEventsForDay(date), isSelected: true),
+          markerBuilder: (context, date, events) => Container(),
+          defaultBuilder: (context, date, events) => 
+              _buildDayCell(date, _getEventsForDay(date)),
+          todayBuilder: (context, date, events) => 
+              _buildDayCell(date, _getEventsForDay(date), isToday: true),
+          selectedBuilder: (context, date, events) => 
+              _buildDayCell(date, _getEventsForDay(date), isSelected: true),
         ),
       ),
     );
@@ -236,11 +217,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Container(
       margin: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF2D2F3A),
-        border:
-            isToday
-                ? Border.all(color: const Color(0xFF005FFF), width: 1.5)
-                : null,
+        color: Colors.grey[200],
+        border: isToday ? Border.all(color: Colors.red[800]!, width: 1.5) : null,
         borderRadius: BorderRadius.circular(4.0),
       ),
       child: Column(
@@ -252,26 +230,24 @@ class _PlannerScreenState extends State<PlannerScreen> {
               child: Text(
                 '${date.day}',
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected ? Colors.red[800] : Colors.grey[800],
                   fontSize: 12,
                 ),
               ),
             ),
           ),
           Expanded(
-            child:
-                events.isEmpty
-                    ? Container()
-                    : ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4.0,
-                        vertical: 2.0,
-                      ),
-                      itemCount: events.length,
-                      itemBuilder:
-                          (context, index) =>
-                              _buildEventItem(events[index], date),
+            child: events.isEmpty
+                ? Container()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4.0,
+                      vertical: 2.0,
                     ),
+                    itemCount: events.length,
+                    itemBuilder: (context, index) => 
+                        _buildEventItem(events[index], date),
+                  ),
           ),
         ],
       ),
@@ -284,7 +260,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       children: [
         Text(
           DateFormat.yMMMM('es_ES').format(_focusedDay),
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -294,45 +270,40 @@ class _PlannerScreenState extends State<PlannerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.chevron_left,
                 color: Colors.white,
                 size: 28,
               ),
-              onPressed:
-                  () => setState(
-                    () =>
-                        _focusedDay = DateTime(
-                          _focusedDay.year,
-                          _focusedDay.month - 1,
-                        ),
-                  ),
+              onPressed: () => setState(
+                () => _focusedDay = DateTime(
+                  _focusedDay.year,
+                  _focusedDay.month - 1,
+                ),
+              ),
             ),
             InkWell(
-              onTap:
-                  () => setState(() {
-                    _focusedDay = DateTime.now();
-                    _selectedDay = _focusedDay;
-                  }),
-              child: const Text(
+              onTap: () => setState(() {
+                _focusedDay = DateTime.now();
+                _selectedDay = _focusedDay;
+              }),
+              child: Text(
                 'Hoy',
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
             IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.chevron_right,
                 color: Colors.white,
                 size: 28,
               ),
-              onPressed:
-                  () => setState(
-                    () =>
-                        _focusedDay = DateTime(
-                          _focusedDay.year,
-                          _focusedDay.month + 1,
-                        ),
-                  ),
+              onPressed: () => setState(
+                () => _focusedDay = DateTime(
+                  _focusedDay.year,
+                  _focusedDay.month + 1,
+                ),
+              ),
             ),
           ],
         ),
@@ -341,8 +312,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildEventItem(Tarjeta event, DateTime cellDate) {
-    final bool isEndDate =
-        event.fechaVencimiento != null &&
+    final bool isEndDate = event.fechaVencimiento != null &&
         isSameDay(cellDate, event.fechaVencimiento);
     int? delayDays;
     if (isEndDate &&
@@ -350,8 +320,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         event.fechaCompletado != null &&
         event.fechaVencimiento != null &&
         event.fechaCompletado!.isAfter(event.fechaVencimiento!)) {
-      delayDays =
-          event.fechaCompletado!.difference(event.fechaVencimiento!).inDays;
+      delayDays = event.fechaCompletado!.difference(event.fechaVencimiento!).inDays;
     }
 
     return InkWell(
@@ -361,7 +330,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         margin: const EdgeInsets.only(bottom: 4.0),
         padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1F25),
+          color: Colors.grey[800],
           borderRadius: BorderRadius.circular(4.0),
         ),
         child: Row(
@@ -378,7 +347,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 children: [
                   Text(
                     event.titulo,
-                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                    style: TextStyle(color: Colors.white, fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -387,8 +356,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       padding: const EdgeInsets.only(top: 2.0),
                       child: Text(
                         '+${delayDays} día(s) de retraso',
-                        style: const TextStyle(
-                          color: Colors.redAccent,
+                        style: TextStyle(
+                          color: Colors.red[300],
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
@@ -409,14 +378,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF2D2F3A),
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           title: Text(
             card.titulo,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Colors.red[800],
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -431,20 +400,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     "Descripción",
                     card.descripcion,
                   ),
-                  const Divider(color: Colors.white24),
+                  Divider(color: Colors.grey[300]),
                 ],
                 _buildDetailRow(
                   Icons.person,
                   "Asignado a",
                   card.miembro.isNotEmpty ? card.miembro : "N/A",
                 ),
-                const Divider(color: Colors.white24),
+                Divider(color: Colors.grey[300]),
                 _buildDetailRow(
                   Icons.flag,
                   "Estado",
                   card.estado.toString().split('.').last.replaceAll('_', ' '),
                 ),
-                const Divider(color: Colors.white24),
+                Divider(color: Colors.grey[300]),
                 if (card.fechaInicio != null)
                   _buildDetailRow(
                     Icons.play_arrow,
@@ -469,9 +438,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 "Cerrar",
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.red[800]),
               ),
             ),
           ],
@@ -486,7 +455,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white70, size: 20),
+          Icon(icon, color: Colors.red[800], size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -494,13 +463,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Colors.grey[800],
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -514,10 +483,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Widget _buildAvatar(String member) {
-    final initials =
-        member.length >= 2
-            ? member.substring(0, 2).toUpperCase()
-            : member.toUpperCase();
+    final initials = member.length >= 2
+        ? member.substring(0, 2).toUpperCase()
+        : member.toUpperCase();
     if (!_memberColors.containsKey(member)) {
       final random = Random(member.hashCode);
       _memberColors[member] = Color.fromARGB(
@@ -532,7 +500,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       backgroundColor: _memberColors[member],
       child: Text(
         initials,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontSize: 8,
           fontWeight: FontWeight.bold,

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:login_app/super%20usario/cards/cards.dart'; // Asumo que TableroScreen está aquí
-import 'package:login_app/super%20usario/crud_user.dart'; // Asumo que UsuariosScreen está aquí
+import 'package:login_app/super%20usario/cards/cards.dart';
+import 'package:login_app/super%20usario/crud_user.dart';
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
-
-// Modelo del proyecto
+import 'package:login_app/models/process.dart';
+import 'dart:async';
 class Project {
   final String name;
   final String status;
@@ -26,7 +26,6 @@ class Project {
   });
 }
 
-// Página principal del dashboard
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -35,6 +34,9 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
+   Timer? _completionCheckerTimer;
+List<Project> _completedProjectsToNotify = [];
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
   List<Project> _projects = [];
@@ -49,46 +51,214 @@ class _DashboardPageState extends State<DashboardPage> {
   int selectedCircleSegment = -1;
 
   int totalProyectos = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    initializeDateFormatting('es', null).then((_) {
-      _fetchProjectsData();
-    });
+String _traducirEstado(String estado) {
+  switch (estado.toLowerCase()) {
+    case 'echo': return 'Completado';
+    case 'en proceso': return 'En progreso';
+    case 'pendiente': return 'Pendiente';
+    default: return estado;
   }
+}
+  // Colores empresariales
+  final Color primaryColor = Colors.red[900]!;
+  final Color secondaryColor = Colors.grey[800]!;
+  final Color backgroundColor = Colors.white;
+  final Color textColor = Colors.black;
+  final Color lightGrey = Colors.grey[300]!;
+  final Color mediumGrey = Colors.grey[500]!;
+  final Color darkGrey = Colors.grey[700]!;
 
-  Future<void> _fetchProjectsData() async {
-    setState(() {
-      _isLoadingProjects = true;
-      _projectsErrorMessage = null;
-    });
+ @override
+void initState() {
+  super.initState();
+  initializeDateFormatting('es', null).then((_) {
+    _fetchProjectsData();
+  });
+  
+  processStatusNotifier.addListener(_handleProcessStatusChange);
+  
+  // Iniciar el timer para verificar finalización
+  _startCompletionChecker();
+}
+void _handleProcessStatusChange() {
+  if (!mounted) return;
+  
+  if (processStatusNotifier.value != null) {
+    final nuevoEstado = processStatusNotifier.value!;
+    
+    // Mostrar notificación solo si el estado es "completado"
+    if (nuevoEstado.toLowerCase() == 'echo') {
+      _mostrarAlertaProcesoCompletado();
+    }
+
+    // Opcional: Mostrar snackbar de confirmación
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Estado actualizado: ${_traducirEstado(nuevoEstado)}'),
+        backgroundColor: Colors.green[700],
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // Actualizar datos
+    _fetchProjectsData();
+    
+    // Resetear el notifier
+    processStatusNotifier.value = null;
+  }
+}
+void _mostrarAlertaProcesoCompletado() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('¡Proceso Completado!'),
+        content: Text('Un proceso ha alcanzado su hora de finalización.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
+  });
+}
+void _startCompletionChecker() {
+  // Verificar cada minuto (ajusta el intervalo según necesites)
+  _completionCheckerTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    if (!mounted) return;
+    
+    final now = DateTime.now().toLocal();
+    final completedProjects = _projects.where((project) {
+      try {
+        final endDate = DateTime.parse(project.endDate).toLocal();
+        // Proyecto que acaba de pasar su fecha límite y no está marcado como completado
+        return (now.isAfter(endDate) || now.isAtSameMomentAs(endDate)) && 
+               project.estado?.toLowerCase() != 'echo';
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    if (completedProjects.isNotEmpty) {
+      setState(() {
+        _completedProjectsToNotify = completedProjects;
+      });
+      _showCompletionAlert();
+    }
+  });
+}
+
+Future<void> _updateProjectsStatus() async {
+  for (final project in _completedProjectsToNotify) {
     try {
-      final fetchedProcesses = await _apiService.getProcesses();
-      setState(() {
-        _projects =
-            fetchedProcesses
-                .map(
-                  (process) => Project(
-                    name: process.nombre_proceso,
-                    startDate: process.startDate.toIso8601String(),
-                    endDate: process.endDate.toIso8601String(),
-                    progress: process.progress ?? 0.0,
-                    estado: process.estado,
-                  ),
-                )
-                .toList();
-        _projectsFiltered = _projects;
-        _isLoadingProjects = false;
-        _calculateProjectPercentages();
-      });
+      final updated = await _apiService.updateProcess(
+        project.name,
+        Process(
+          nombre_proceso: project.name,
+          startDate: DateTime.parse(project.startDate),
+          endDate: DateTime.parse(project.endDate),
+          estado: 'echo',
+          progress: 1.0, // Marcar como 100% completado
+        ),
+      );
+      
+      if (updated != null) {
+        // Actualizar la lista local
+        setState(() {
+          final index = _projects.indexWhere((p) => p.name == project.name);
+          if (index != -1) {
+            _projects[index] = Project(
+              name: project.name,
+              startDate: project.startDate,
+              endDate: project.endDate,
+              estado: 'echo',
+              progress: 1.0,
+            );
+          }
+        });
+      }
     } catch (e) {
-      setState(() {
-        _projectsErrorMessage = 'Error al cargar los procesos: $e';
-        _isLoadingProjects = false;
-      });
+      print('Error al actualizar el estado del proyecto: $e');
     }
   }
+  
+  // Limpiar la lista de notificaciones
+  setState(() {
+    _completedProjectsToNotify = [];
+  });
+  
+  // Actualizar los datos
+  _fetchProjectsData();
+}
+void _showCompletionAlert() {
+  if (_completedProjectsToNotify.isEmpty || !mounted) return;
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(_completedProjectsToNotify.length == 1 
+            ? '¡Proceso completado!'
+            : '¡Procesos completados!'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _completedProjectsToNotify.map((project) {
+              return ListTile(
+                title: Text(project.name),
+                subtitle: Text('Finalizó: ${_formatEndDate(project.endDate)}'),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Actualizar el estado de los proyectos a "echo"
+              _updateProjectsStatus();
+              Navigator.pop(context);
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
+  });
+}
+Future<void> _fetchProjectsData() async {
+  setState(() {
+    _isLoadingProjects = true;
+    _projectsErrorMessage = null;
+  });
+  try {
+    final fetchedProcesses = await _apiService.getProcesses();
+    setState(() {
+      _projects = fetchedProcesses.map((process) => Project(
+        name: process.nombre_proceso,
+        startDate: process.startDate.toIso8601String(),
+        endDate: process.endDate.toIso8601String(),
+        progress: process.progress ?? 0.0,
+        estado: process.estado,
+      )).toList();
+      _projectsFiltered = _projects;
+      _isLoadingProjects = false;
+      _calculateProjectPercentages();
+    });
+    
+    // Reiniciar el checker con los nuevos datos
+    _completionCheckerTimer?.cancel();
+    _startCompletionChecker();
+  } catch (e) {
+    setState(() {
+      _projectsErrorMessage = 'Error al cargar los procesos: $e';
+      _isLoadingProjects = false;
+    });
+  }
+}
 
   void _calculateProjectPercentages() {
     if (_projects.isEmpty) {
@@ -116,8 +286,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     int otherCount =
         _projects.length - completedCount - inProgressCount - pendingCount;
-    pendingCount +=
-        otherCount; // Se asume que cualquier otro estado se agrupa en 'Pendiente'
+    pendingCount += otherCount;
 
     int total = _projects.length;
 
@@ -143,14 +312,16 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirmar Eliminación'),
+          backgroundColor: backgroundColor,
+          title: Text('Confirmar Eliminación', style: TextStyle(color: textColor)),
           content: Text(
             '¿Estás seguro de que quieres eliminar el proceso "$processName"? Esta acción es irreversible y eliminará todos los datos asociados a este proceso (listas y tarjetas).',
+            style: TextStyle(color: darkGrey),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+              child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -158,8 +329,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 await _deleteProcess(processName);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: primaryColor,
+                foregroundColor: backgroundColor,
               ),
               child: const Text('Eliminar'),
             ),
@@ -180,7 +351,8 @@ class _DashboardPageState extends State<DashboardPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Proceso "$processName" eliminado exitosamente.'),
+              content: Text('Proceso "$processName" eliminado exitosamente.', style: TextStyle(color: backgroundColor)),
+              backgroundColor: Colors.green[700],
             ),
           );
         }
@@ -188,7 +360,8 @@ class _DashboardPageState extends State<DashboardPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al eliminar el proceso "$processName".'),
+              content: Text('Error al eliminar el proceso "$processName".', style: TextStyle(color: backgroundColor)),
+              backgroundColor: primaryColor,
             ),
           );
         }
@@ -197,7 +370,8 @@ class _DashboardPageState extends State<DashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error de conexión al eliminar el proceso: $e'),
+            content: Text('Error de conexión al eliminar el proceso: $e', style: TextStyle(color: backgroundColor)),
+            backgroundColor: primaryColor,
           ),
         );
       }
@@ -208,30 +382,44 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  String _formatDate(String dateString) {
-    try {
-      final DateTime dateTime = DateTime.parse(dateString);
-      return '${dateTime.day.toString().padLeft(2, '0')}/'
-          '${dateTime.month.toString().padLeft(2, '0')}/'
-          '${dateTime.year}';
-    } catch (e) {
-      return 'Fecha Inválida';
-    }
+String _formatStartDate(String dateString) {
+  try {
+    final DateTime dateTime = DateTime.parse(dateString);
+    return '${dateTime.day.toString().padLeft(2, '0')}/'
+           '${dateTime.month.toString().padLeft(2, '0')}/'
+           '${dateTime.year}';
+  } catch (e) {
+    return 'Fecha Inválida';
   }
+}
+
+String _formatEndDate(String dateString) {
+  
+  try {
+    final DateTime dateTime = DateTime.parse(dateString).toLocal();
+    return '${dateTime.day.toString().padLeft(2, '0')}/'
+           '${dateTime.month.toString().padLeft(2, '0')}/'
+           '${dateTime.year} '
+           '(${dateTime.hour.toString().padLeft(2, '0')}:'
+           '${dateTime.minute.toString().padLeft(2, '0')})';
+  } catch (e) {
+    return 'Fecha Inválida';
+  }
+}
 
   void _onItemTapped(int index) {
-    Navigator.of(context).pop(); // Cierra el drawer
+    Navigator.of(context).pop();
     switch (index) {
-      case 0: // Inicio (Dashboard)
+      case 0:
         setState(() => _selectedIndex = 0);
         break;
-      case 1: // Usuarios
+      case 1:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => UsuariosScreen()),
         );
         break;
-      case 2: // Gestión de Procesos / Tablero
+      case 2:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -239,7 +427,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         );
         break;
-      case 3: // Tablero de Proyectos (Redundante con 2 si es lo mismo)
+      case 3:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -247,16 +435,15 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         );
         break;
-      case 4: // Crear nuevo proceso (Redundante con 2 si es lo mismo)
+      case 4:
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TableroScreen(processName: null),
           ),
         );
-        //
         break;
-      case 5: // Cerrar Sesión
+      case 5:
         _showLogoutDialog();
         break;
       default:
@@ -269,12 +456,13 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Cerrar Sesión'),
-          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          backgroundColor: backgroundColor,
+          title: Text('Cerrar Sesión', style: TextStyle(color: primaryColor)),
+          content: Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: darkGrey)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+              child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -282,8 +470,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 _logout();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: primaryColor,
+                foregroundColor: backgroundColor,
               ),
               child: const Text('Cerrar Sesión'),
             ),
@@ -304,13 +492,13 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle(_selectedIndex)),
-        backgroundColor: Colors.blue[900],
-        foregroundColor: Colors.white,
+        title: Text(_getTitle(_selectedIndex), style: TextStyle(color: backgroundColor)),
+        backgroundColor: primaryColor,
+        foregroundColor: backgroundColor,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: backgroundColor),
             onPressed: _fetchProjectsData,
           ),
         ],
@@ -351,77 +539,92 @@ class _DashboardPageState extends State<DashboardPage> {
       case 4:
         return TableroScreen(processName: null);
       default:
-        return const Center(child: Text('Página no encontrada'));
+        return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
     }
   }
 
-  Widget _homeContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            children: [
-              Center(
-                child: SizedBox(
-                  width: 600,
-                  child: Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          labelText: 'Buscar Proyecto',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
-                          ),
+Widget _homeContent() {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Column(
+          children: [
+            Center(
+              child: SizedBox(
+                width: 600,
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  color: backgroundColor,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar Proyecto',
+                        labelStyle: TextStyle(color: darkGrey),
+                        prefixIcon: Icon(Icons.search, color: primaryColor),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
                         ),
-                        onChanged: _filtrarProyectos,
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: mediumGrey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: mediumGrey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: primaryColor,
+                            width: 2.0),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
+                      onChanged: _filtrarProyectos,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 800) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPieChart(),
-                        const SizedBox(width: 40),
-                        _buildBarChart(constraints),
-                      ],
-                    );
-                  } else {
-                    return Column(
-                      children: [
-                        _buildPieChart(),
-                        const SizedBox(height: 40),
-                        _buildBarChart(constraints),
-                      ],
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 30),
-              _tableContent(),
-            ],
-          ),
+            ),
+            const SizedBox(height: 30),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 800) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPieChart(),
+                      const SizedBox(width: 40),
+                      _buildBarChart(constraints),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    children: [
+                      _buildPieChart(),
+                      const SizedBox(height: 40),
+                      _buildBarChart(constraints),
+                    ],
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 30),
+            _tableContent(),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPieChart() {
     return Column(
@@ -441,7 +644,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 completedPercent: completedPercent,
                 inProgressPercent: inProgressPercent,
                 pendingPercent: pendingPercent,
-                colors: [Colors.green, Colors.blue, Colors.orange],
+                colors: [Colors.green[700]!, primaryColor, mediumGrey],
                 selectedSegment: selectedCircleSegment,
               ),
               child: Center(
@@ -450,15 +653,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     Text(
                       '$totalProyectos',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: textColor,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Proyectos',
-                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                      style: TextStyle(fontSize: 16, color: mediumGrey),
                     ),
                   ],
                 ),
@@ -477,17 +680,17 @@ class _DashboardPageState extends State<DashboardPage> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildLegendItem(
-          Colors.green,
+          Colors.green[700]!,
           'Completado: ${(completedPercent * 100).toStringAsFixed(1)}%',
           isSelected: selectedCircleSegment == 0,
         ),
         _buildLegendItem(
-          Colors.blue,
+          primaryColor,
           'En progreso: ${(inProgressPercent * 100).toStringAsFixed(1)}%',
           isSelected: selectedCircleSegment == 1,
         ),
         _buildLegendItem(
-          Colors.orange,
+          mediumGrey,
           'Pendiente: ${(pendingPercent * 100).toStringAsFixed(1)}%',
           isSelected: selectedCircleSegment == 2,
         ),
@@ -512,16 +715,15 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           Container(width: 20, height: 14, color: color),
           const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontSize: 16)),
+          Text(text, style: TextStyle(fontSize: 16, color: textColor)),
         ],
       ),
     );
   }
 
   Widget _buildBarChart(BoxConstraints constraints) {
-    // Inicializamos contadores para cada mes (de enero a diciembre)
-    List<int> started = List.filled(12, 0); // Proyectos iniciados por mes
-    List<int> closed = List.filled(12, 0); // Proyectos finalizados por mes
+    List<int> started = List.filled(12, 0);
+    List<int> closed = List.filled(12, 0);
 
     for (var project in _projects) {
       final start = DateTime.tryParse(project.startDate);
@@ -536,10 +738,9 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
-    // Calculamos el ancho dinámicamente según barras y espacios para evitar desbordes
     const double barWidth = 20;
-    const double barSpace = 8; // Space between started and closed bars
-    const double groupSpace = 20; // Space between month groups
+    const double barSpace = 8;
+    const double groupSpace = 20;
     const double leftPadding = 60;
     const double rightPadding = 20;
     const int monthCount = 12;
@@ -549,17 +750,16 @@ class _DashboardPageState extends State<DashboardPage> {
         monthCount * ((barWidth * 2) + barSpace + groupSpace) +
         rightPadding;
 
-    // Definimos un ancho mínimo para el container
     double boxWidth = totalContentWidth > 600 ? totalContentWidth : 600;
 
-    // Envolvemos la gráfica en un SingleChildScrollView horizontal para permitir scroll si no cabe
-    return SingleChildScrollView(
+   return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SizedBox(
         width: boxWidth,
         height: 370,
         child: Card(
           elevation: 4,
+          color: backgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -569,9 +769,13 @@ class _DashboardPageState extends State<DashboardPage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Actividad Mensual de Proyectos',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: textColor
+                    ),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -580,18 +784,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: CustomPaint(
                       painter: BarChartPainter(
                         months: const [
-                          'Ene',
-                          'Feb',
-                          'Mar',
-                          'Abr',
-                          'May',
-                          'Jun',
-                          'Jul',
-                          'Ago',
-                          'Sep',
-                          'Oct',
-                          'Nov',
-                          'Dic',
+                          'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                          'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
                         ],
                         started: started,
                         closed: closed,
@@ -602,9 +796,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildLegendItem(Colors.orange, 'Iniciados'),
+                      _buildLegendItem(primaryColor, 'Iniciados'),
                       const SizedBox(width: 20),
-                      _buildLegendItem(Colors.cyan, 'Completados'),
+                      _buildLegendItem(darkGrey, 'Completados'),
                     ],
                   ),
                 ],
@@ -618,12 +812,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _tableContent() {
     return _isLoadingProjects
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(color: primaryColor))
         : _projectsErrorMessage != null
         ? Center(
           child: Text(
             _projectsErrorMessage!,
-            style: const TextStyle(color: Colors.red),
+            style: TextStyle(color: primaryColor),
           ),
         )
         : SingleChildScrollView(
@@ -632,6 +826,7 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               Card(
                 elevation: 2,
+                color: backgroundColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -639,53 +834,80 @@ class _DashboardPageState extends State<DashboardPage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         'Tabla de Proyectos',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: textColor
                         ),
                       ),
                       const SizedBox(height: 16),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
-                          columns: const [
+                          columns: [
                             DataColumn(
                               label: Text(
                                 'Nombre',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
                             DataColumn(
                               label: Text(
                                 'Estado',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
                             DataColumn(
                               label: Text(
                                 'Inicio',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
                             DataColumn(
                               label: Text(
                                 'Fin',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
-                            //
                             DataColumn(
                               label: Text(
                                 'Acciones',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Editar',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
                             DataColumn(
                               label: Text(
                                 'Eliminar',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor
+                                ),
                               ),
                             ),
                           ],
@@ -693,17 +915,16 @@ class _DashboardPageState extends State<DashboardPage> {
                               _projectsFiltered.map((project) {
                                 return DataRow(
                                   cells: [
-                                    DataCell(Text(project.name)),
+                                    DataCell(Text(project.name, style: TextStyle(color: textColor))),
                                     DataCell(
-                                      Text(project.estado ?? 'Sin estado'),
+                                      Text(project.estado ?? 'Sin estado', style: TextStyle(color: textColor)),
                                     ),
                                     DataCell(
-                                      Text(_formatDate(project.startDate)),
+                                      Text(_formatStartDate(project.startDate), style: TextStyle(color: textColor)),
                                     ),
                                     DataCell(
-                                      Text(_formatDate(project.endDate)),
+                                      Text(_formatEndDate(project.endDate), style: TextStyle(color: textColor)),
                                     ),
-                                    //
                                     DataCell(
                                       ElevatedButton.icon(
                                         onPressed: () {
@@ -717,26 +938,36 @@ class _DashboardPageState extends State<DashboardPage> {
                                             ),
                                           );
                                         },
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.visibility,
                                           size: 18,
+                                          color: backgroundColor,
                                         ),
-                                        label: const Text(
+                                        label: Text(
                                           'Ver Detalles',
-                                          style: TextStyle(fontSize: 12),
+                                          style: TextStyle(fontSize: 12, color: backgroundColor),
                                         ),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blue[700],
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
+                                          backgroundColor: darkGrey,
+                                          padding: EdgeInsets.symmetric(
                                             horizontal: 10,
                                             vertical: 8,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      ElevatedButton.icon(
+                                        onPressed: () => _showEditProjectDialog(project),
+                                        icon: Icon(Icons.edit, size: 18, color: backgroundColor),
+                                        label: Text('Editar', style: TextStyle(fontSize: 12, color: backgroundColor)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: mediumGrey,
+                                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                         ),
                                       ),
                                     ),
@@ -748,25 +979,23 @@ class _DashboardPageState extends State<DashboardPage> {
                                             project.name,
                                           );
                                         },
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.delete,
                                           size: 18,
+                                          color: backgroundColor,
                                         ),
-                                        label: const Text(
+                                        label: Text(
                                           'Eliminar',
-                                          style: TextStyle(fontSize: 12),
+                                          style: TextStyle(fontSize: 12, color: backgroundColor),
                                         ),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red[700],
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
+                                          backgroundColor: primaryColor,
+                                          padding: EdgeInsets.symmetric(
                                             horizontal: 10,
                                             vertical: 8,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
                                         ),
                                       ),
@@ -785,37 +1014,213 @@ class _DashboardPageState extends State<DashboardPage> {
         );
   }
 
+String _formatDateTime(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}/'
+         '${date.month.toString().padLeft(2, '0')}/'
+         '${date.year} '
+         '${date.hour.toString().padLeft(2, '0')}:'
+         '${date.minute.toString().padLeft(2, '0')}';
+}
+
+String _formatDateString(String isoDate) {
+  try {
+    final date = DateTime.parse(isoDate);
+    return _formatDateTime(date);
+  } catch (e) {
+    return isoDate;
+  }
+}
+
+DateTime? _parseDateString(String dateStr) {
+  try {
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+String _parseToIsoDateString(String dateStr) {
+  try {
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      ).toIso8601String();
+    }
+    return DateTime.now().toIso8601String();
+  } catch (e) {
+    return DateTime.now().toIso8601String();
+  }
+}
+
+void _showEditProjectDialog(Project project) {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController(text: project.name);
+  final _statusController = TextEditingController(text: project.estado);
+  
+  final _startDateController = TextEditingController(
+    text: project.startDate != 'N/A' ? _formatDateString(project.startDate) : '',
+  );
+  final _endDateController = TextEditingController(
+    text: project.endDate != 'N/A' ? _formatDateString(project.endDate) : '',
+  );
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: backgroundColor,
+        title: Text('Editar Proyecto', style: TextStyle(color: textColor)),
+        content: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Proceso',
+                    labelStyle: TextStyle(color: darkGrey),
+                  ),
+                  validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
+                ),
+               
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState?.validate() ?? false) {
+                await _updateProject(
+                  originalName: project.name,
+                  updatedName: _nameController.text,
+                  newStatus: _statusController.text,
+                  newStartDate: _startDateController.text.isNotEmpty
+                      ? _parseToIsoDateString(_startDateController.text)
+                      : project.startDate,
+                  newEndDate: _endDateController.text.isNotEmpty
+                      ? _parseToIsoDateString(_endDateController.text)
+                      : project.endDate,
+                );
+                if (mounted) Navigator.of(context).pop();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: backgroundColor,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _updateProject({
+  required String originalName,
+  required String updatedName,
+  required String newStatus,
+  required String newStartDate,
+  required String newEndDate,
+}) async {
+  if (mounted) Navigator.of(context).pop();
+  
+  setState(() => _isLoadingProjects = true);
+  
+  try {
+    final originalProject = _projects.firstWhere((p) => p.name == originalName);
+
+    final updatedProcess = Process(
+      id: null,
+      nombre_proceso: updatedName,
+      startDate: DateTime.parse(newStartDate),
+      endDate: DateTime.parse(newEndDate),
+      estado: newStatus,
+      progress: originalProject.progress,
+    );
+
+    final updated = await _apiService.updateProcess(
+      originalName,
+      updatedProcess,
+    );
+
+    if (updated != null) {
+      await _fetchProjectsData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Proceso "$updatedName" actualizado', style: TextStyle(color: backgroundColor)),
+            backgroundColor: Colors.green[700],
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar el proceso', style: TextStyle(color: backgroundColor)),
+            backgroundColor: primaryColor,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}', style: TextStyle(color: backgroundColor)),
+          backgroundColor: primaryColor,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoadingProjects = false);
+    }
+  }
+}
+
   void _handleCircleTap(Offset localPos) {
-    // Estas dimensiones deben coincidir con las del SizedBox en _buildPieChart
-    final double widgetSize = 220; // width and height of the SizedBox
+    final double widgetSize = 220;
     final double strokeWidth = 30.0;
-    final double innerRadius =
-        (widgetSize / 2) - strokeWidth; // inner boundary of the ring
-    final double outerRadius =
-        (widgetSize / 2); // outer boundary of the ring (or radius for center)
+    final double innerRadius = (widgetSize / 2) - strokeWidth;
+    final double outerRadius = (widgetSize / 2);
 
     final center = Offset(widgetSize / 2, widgetSize / 2);
     final dx = localPos.dx - center.dx;
     final dy = localPos.dy - center.dy;
     final distance = sqrt(dx * dx + dy * dy);
 
-    // Check if the tap is within the drawable ring area
     if (distance < innerRadius || distance > outerRadius) {
       setState(() => selectedCircleSegment = -1);
       return;
     }
 
     double angle = atan2(dy, dx);
-    // Adjust angle to be from 0 to 2*pi, starting from the top (-pi/2)
-    // atan2 returns values from -pi to pi. Convert to 0 to 2*pi range.
     if (angle < 0) angle += 2 * pi;
-    angle -=
-        pi /
-        2; // Adjust so 0 is at the top (like CSS/Flutter's 0 angle for arcs)
-    if (angle < 0) angle += 2 * pi; // Ensure it stays positive after adjustment
+    angle -= pi / 2;
+    if (angle < 0) angle += 2 * pi;
 
     final segments = [completedPercent, inProgressPercent, pendingPercent];
-    double cumulativeAngle = 0; // Cumulative angle for segments
+    double cumulativeAngle = 0;
 
     for (int i = 0; i < segments.length; i++) {
       double segmentSweepAngle = 2 * pi * segments[i];
@@ -829,8 +1234,6 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() => selectedCircleSegment = -1);
   }
 }
-
-// --- CLASES CUSTOMPAINTER ---
 
 class MultiSegmentCirclePainter extends CustomPainter {
   final double completedPercent;
@@ -851,25 +1254,22 @@ class MultiSegmentCirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final strokeWidth = 30.0;
     final center = Offset(size.width / 2, size.height / 2);
-    final radius =
-        (size.width / 2) -
-        strokeWidth / 2; // Radius to the center of the stroke
+    final radius = (size.width / 2) - strokeWidth / 2;
 
     final backgroundPaint =
         Paint()
-          ..color = Colors.grey.shade200
+          ..color = Colors.grey[200]!
           ..style = PaintingStyle.stroke
           ..strokeWidth = strokeWidth;
 
-    // Draw the full background circle
     canvas.drawCircle(center, radius, backgroundPaint);
 
     final paint =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round; // Use round cap for a smoother look
+          ..strokeCap = StrokeCap.round;
 
-    double startAngle = -pi / 2; // Start from top center (12 o'clock)
+    double startAngle = -pi / 2;
     final segments = [completedPercent, inProgressPercent, pendingPercent];
 
     for (int i = 0; i < segments.length; i++) {
@@ -879,12 +1279,11 @@ class MultiSegmentCirclePainter extends CustomPainter {
           (i == selectedSegment) ? strokeWidth + 8 : strokeWidth;
 
       if (sweepAngle > 0) {
-        // Only draw if the segment has a size
         canvas.drawArc(
           Rect.fromCircle(center: center, radius: radius),
           startAngle,
           sweepAngle,
-          false, // Use center is false for an arc (not a pie slice)
+          false,
           paint,
         );
       }
@@ -918,40 +1317,32 @@ class BarChartPainter extends CustomPainter {
     final double leftPadding = 60;
     final double rightPadding = 20;
     final double barWidth = 20;
-    final double barSpace = 8; // Space between started and closed bars
-    final double groupSpace = 20; // Space between month groups
+    final double barSpace = 8;
+    final double groupSpace = 20;
     final double topPadding = 20;
 
     final int monthCount = months.length;
-
-    // Calculate max value for Y-axis scaling
     final int maxValue = [...started, ...closed].reduce((a, b) => max(a, b));
     final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;
-    final double stepValue =
-        maxValue > 0
-            ? (maxValue / yAxisSteps)
-            : 1; // Use double for more precise scaling
+    final double stepValue = maxValue > 0 ? (maxValue / yAxisSteps) : 1;
 
     final axisPaint =
         Paint()
           ..color = Colors.grey[600]!
           ..strokeWidth = 1.5;
 
-    // Eje Y
     canvas.drawLine(
       Offset(leftPadding, topPadding),
       Offset(leftPadding, topPadding + chartHeight),
       axisPaint,
     );
 
-    // Eje X
     canvas.drawLine(
       Offset(leftPadding, topPadding + chartHeight),
       Offset(size.width - rightPadding, topPadding + chartHeight),
       axisPaint,
     );
 
-    // Líneas guía y etiquetas eje Y
     final textStyle = TextStyle(color: Colors.grey[700], fontSize: 12);
     for (int i = 0; i <= yAxisSteps; i++) {
       final double value = i * stepValue;
@@ -971,7 +1362,7 @@ class BarChartPainter extends CustomPainter {
       final textSpan = TextSpan(
         text: value.toInt().toString(),
         style: textStyle,
-      ); // Convert to Int for display
+      );
       final textPainter = TextPainter(
         text: textSpan,
         textAlign: TextAlign.right,
@@ -984,7 +1375,6 @@ class BarChartPainter extends CustomPainter {
       );
     }
 
-    // Dibujar barras
     for (int i = 0; i < monthCount; i++) {
       double groupX =
           leftPadding + i * ((barWidth * 2) + barSpace + groupSpace);
@@ -1000,7 +1390,7 @@ class BarChartPainter extends CustomPainter {
           barWidth,
           startedHeight,
         ),
-        Paint()..color = Colors.orange,
+        Paint()..color = Colors.red[900]!,
       );
 
       double closedHeight =
@@ -1014,7 +1404,7 @@ class BarChartPainter extends CustomPainter {
           barWidth,
           closedHeight,
         ),
-        Paint()..color = Colors.cyan[600]!,
+        Paint()..color = Colors.grey[800]!,
       );
 
       final monthPainter = TextPainter(
@@ -1035,14 +1425,10 @@ class BarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant BarChartPainter oldDelegate) {
-    // Only repaint if the data lists change (assuming they are new lists when updated)
     return oldDelegate.started != started || oldDelegate.closed != closed;
   }
 }
 
-// --- CLASE LOGINSCREEN ---
-// Puedes mover esta clase a un archivo separado (e.g., lib/login/login_screen.dart)
-// si lo prefieres para una mejor organización.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
@@ -1050,8 +1436,8 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
-        backgroundColor: Colors.blue[900],
+        title: const Text('Login', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.red[900],
         foregroundColor: Colors.white,
       ),
       body: const Center(
