@@ -203,7 +203,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? ciudadSeleccionada;
     String? areaSeleccionada;
 
-    final roles = ['Gerencia', 'Usuario', 'Supervisor'];
+    final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op'];
     final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
     final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 

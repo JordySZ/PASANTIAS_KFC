@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:login_app/ROLES/A.R/ar.dart';
+import 'package:login_app/ROLES/CONT/cont.dart';
+import 'package:login_app/ROLES/CX/cx.dart';
+import 'package:login_app/ROLES/SD/sd.dart';
+import 'package:login_app/ROLES/SIR/sir.dart';
 import 'dart:convert';
 
-// Importa tus pantallas de destino
+
 import 'package:login_app/scrum user/scrum_user.dart';
-import 'package:login_app/gerente/gerente.dart';
+import 'package:login_app/ROLES/Operaciones/op.dart';
 import 'package:login_app/super%20usario/home_page.dart';
+import 'package:login_app/ROLES/swt/sw.dart';
 
 class LoginScreen1 extends StatefulWidget {
   const LoginScreen1({Key? key}) : super(key: key);
@@ -41,11 +47,11 @@ class _LoginScreenState extends State<LoginScreen1> {
           final Map<String, dynamic> responseData = json.decode(response.body);
           final String? userRole = responseData['usuario']['rol'];
 
-          if (userRole == 'Gerencia') {
+          if (userRole == 'Op') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => const GerenciaScreen(),
+                builder: (_) => const DashboardPage22(),
               ),
             );
           } else if (userRole == 'Supervisor') {
@@ -55,11 +61,47 @@ class _LoginScreenState extends State<LoginScreen1> {
                 builder: (_) => const DashboardPage(),
               ),
             );
-          } else if (userRole == 'Usuario') {
+          } else if (userRole == 'SWT') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => UsuariosScreen(),
+                builder: (_) => DashboardSwt(),
+              ),
+            );
+            } else if (userRole == 'Cont') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DashboardCont(),
+              ),
+            );
+          } else if (userRole == 'A.R') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr(),
+              ),
+            );
+            } else if (userRole == 'CX') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DashboardCx(),
+              ),
+            );
+          } else if (userRole == 'SIR') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardSir(),
+              ),
+            );
+
+             } else if (userRole == 'SD') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardSD(),
               ),
             );
           } else {

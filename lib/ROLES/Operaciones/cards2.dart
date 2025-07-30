@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:login_app/ROLES/Operaciones/op.dart';
+import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/home_page.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
@@ -22,16 +23,16 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
 import 'dart:html' as html;
 
-class TableroScreen extends StatefulWidget {
+class TableroScreen22 extends StatefulWidget {
   final String? processName;
 
-  const TableroScreen({super.key, this.processName,});
+  const TableroScreen22({super.key, this.processName,});
 
   @override
-  State<TableroScreen> createState() => _TableroScreenState();
+  State<TableroScreen22> createState() => _TableroScreenState();
 }
 
-class _TableroScreenState extends State<TableroScreen> {
+class _TableroScreenState extends State<TableroScreen22> {
   // Esta función debe estar en tu clase _TableroScreenState, al mismo nivel que otros métodos
 Future<void> _exportToExcel() async {
   // Validar que exista información del proceso
@@ -816,351 +817,11 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
   }
 }
 
-  void agregarListaNueva() async {
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para añadir listas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    String newTitle = 'Nueva lista';
-    TextEditingController controller = TextEditingController(text: newTitle);
+ 
+ 
+  
 
-    String? chosenTitle = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[100],
-          title: const Text('Título de la Nueva Lista', style: TextStyle(color: Colors.black)),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Ej. Pendientes',
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.red),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.black)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context, controller.text),
-              child: const Text('Crear', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (chosenTitle != null && chosenTitle.isNotEmpty) {
-      newTitle = chosenTitle;
-    } else {
-      return;
-    }
-
-    String tempId = 'temp-list-${DateTime.now().millisecondsSinceEpoch}';
-    ListaDatos nuevaListaTemp = ListaDatos(id: tempId, titulo: newTitle);
-
-    setState(() {
-      listas.add(nuevaListaTemp);
-      tarjetasPorLista.add([]);
-      keysAgregarTarjeta.add(GlobalKey());
-      _listIdToIndexMap[nuevaListaTemp.id] = listas.length - 1;
-    });
-
-    try {
-      final ListaDatos? createdList = await _apiService.createList(
-        _currentProcessCollectionName!,
-        nuevaListaTemp,
-      );
-      if (createdList != null) {
-        setState(() {
-          int index = listas.indexWhere((list) => list.id == tempId);
-          if (index != -1) {
-            listas[index] = createdList;
-            _listIdToIndexMap.remove(tempId);
-            _listIdToIndexMap[createdList.id] = index;
-          }
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Lista "${createdList.titulo}" creada exitosamente en backend con ID: ${createdList.id}',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lista "$newTitle" creada exitosamente.'),
-            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR TABLERO: agregarListaNueva - _apiService.createList devolvió null.',
-        );
-        setState(() {
-          listas.removeLast();
-          tarjetasPorLista.removeLast();
-          keysAgregarTarjeta.removeLast();
-          _listIdToIndexMap.remove(tempId);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al crear la nueva lista.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR TABLERO: agregarListaNueva - Excepción al crear lista: $e',
-      );
-      setState(() {
-        listas.removeLast();
-        tarjetasPorLista.removeLast();
-        keysAgregarTarjeta.removeLast();
-        _listIdToIndexMap.remove(tempId);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al crear la lista: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-    print(
-      'FLUTTER DEBUG TABLERO: Lista nueva añadida localmente. Cantidad de listas: ${listas.length}',
-    );
-  }
-
-  void editarTituloLista(int index, String nuevoTitulo) async {
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para editar listas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    ListaDatos listaToUpdate = listas[index].copyWith(titulo: nuevoTitulo);
-
-    try {
-      final ListaDatos? updatedList = await _apiService.updateList(
-        _currentProcessCollectionName!,
-        listaToUpdate,
-      );
-      if (updatedList != null) {
-        setState(() {
-          listas[index] = updatedList;
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Título de lista editado exitosamente en backend. Lista ${updatedList.id}: ${updatedList.titulo}',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Título de la lista actualizado a "$nuevoTitulo".'),
-            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR TABLERO: editarTituloLista - _apiService.updateList devolvió null.',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar el título de la lista.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR TABLERO: editarTituloLista - Excepción al actualizar título de lista: $e',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al actualizar el título de la lista: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _eliminarListaDelBackend(int indexLista, String listaId) async {
-    print(
-      'FLUTTER DEBUG TABLERO: _eliminarListaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName, ID de lista a eliminar: $listaId',
-    );
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para eliminar listas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    String? listTitleToDelete;
-    if (indexLista < listas.length) {
-      listTitleToDelete = listas[indexLista].titulo;
-    }
-
-    bool confirmDelete = await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: Colors.grey[100],
-              title: const Text('Confirmar Eliminación', style: TextStyle(color: Colors.black)),
-              content: Text(
-                '¿Estás seguro de que quieres eliminar la lista "$listTitleToDelete"? Esto también eliminará todas las tarjetas dentro de ella.',
-                style: const TextStyle(color: Colors.black),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancelar', style: TextStyle(color: Colors.black)),
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                  },
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (!confirmDelete) {
-      print('FLUTTER DEBUG TABLERO: Eliminación de lista cancelada.');
-      return;
-    }
-
-    try {
-      final bool success = await _apiService.deleteList(
-        _currentProcessCollectionName!,
-        listaId,
-      );
-      if (success) {
-        setState(() {
-          listas.removeAt(indexLista);
-          tarjetasPorLista.removeAt(indexLista);
-          keysAgregarTarjeta.removeAt(indexLista);
-          _listIdToIndexMap.clear();
-          for (int i = 0; i < listas.length; i++) {
-            _listIdToIndexMap[listas[i].id] = i;
-          }
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Lista eliminada exitosamente de "$_currentProcessCollectionName": $listaId',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lista "${listTitleToDelete ?? "desconocida"}" eliminada exitosamente.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR API: _eliminarListaDelBackend - _apiService.deleteList devolvió false.',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al eliminar la lista.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR API: _eliminarListaDelBackend - Excepción al eliminar lista: $e',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al eliminar la lista: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void agregarTarjeta(int indexLista, Tarjeta tarjeta) async {
-    print(
-      'FLUTTER DEBUG TABLERO: agregarTarjeta llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
-    );
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para añadir tarjetas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      print(
-        'FLUTTER DEBUG TABLERO: agregarTarjeta - No hay proceso seleccionado, no se añade tarjeta.',
-      );
-      return;
-    }
-
-    final String targetListId = listas[indexLista].id;
-    print(
-      'FLUTTER DEBUG TABLERO: Intentando crear tarjeta con idLista: $targetListId (que debería ser el ID real de MongoDB)',
-    );
-
-    final Tarjeta tarjetaConListId = tarjeta.copyWith(idLista: targetListId);
-
-    try {
-      final Tarjeta? createdCard = await _apiService.createCard(
-        _currentProcessCollectionName!,
-        tarjetaConListId,
-      );
-      if (createdCard != null) {
-        setState(() {
-          tarjetasPorLista[indexLista].add(createdCard);
-          indiceListaEditandoTarjeta = null;
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Tarjeta creada exitosamente en "$_currentProcessCollectionName" para lista ${createdCard.idLista}: ${createdCard.titulo}',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-           content: Text(  'Tarjeta "${createdCard.titulo}" creada exitosamente.'),
-            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR TABLERO: agregarTarjeta - _apiService.createCard devolvió null.',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al crear la tarjeta.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR TABLERO: agregarTarjeta - Excepción al crear tarjeta: $e',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al crear la tarjeta: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
+  
   void mostrarCampoNuevaTarjeta(int indexLista) {
     setState(() {
       indiceListaEditandoTarjeta = indexLista;
@@ -1306,70 +967,7 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
     }
   }
 
-  void _eliminarTarjetaDelBackend(
-    int indexLista,
-    int indexTarjeta,
-    String tarjetaId,
-  ) async {
-    print(
-      'FLUTTER DEBUG TABLERO: _eliminarTarjetaDelBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
-    );
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para eliminar tarjetas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    String? cardTitleToDelete;
-    if (indexLista < tarjetasPorLista.length &&
-        indexTarjeta < tarjetasPorLista[indexLista].length) {
-      cardTitleToDelete = tarjetasPorLista[indexLista][indexTarjeta].titulo;
-    }
-
-    try {
-      final bool success = await _apiService.deleteCard(
-        _currentProcessCollectionName!,
-        tarjetaId,
-      );
-      if (success) {
-        setState(() {
-          tarjetasPorLista[indexLista].removeAt(indexTarjeta);
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Tarjeta eliminada exitosamente de "$_currentProcessCollectionName": $tarjetaId',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tarjeta "${cardTitleToDelete ?? "desconocida"}" eliminada exitosamente.'),
-            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR API: _eliminarTarjetaDelBackend - _apiService.deleteCard devolvió false.',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al eliminar la tarjeta.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR API: _eliminarTarjetaDelBackend - Excepción al eliminar tarjeta: $e',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al eliminar la tarjeta: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  
 
  @override
 Widget build(BuildContext context) {
@@ -1385,7 +983,7 @@ Widget build(BuildContext context) {
     onPressed: () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => DashboardPage()),
+        MaterialPageRoute(builder: (_) => DashboardPage22()),
       );
     },
   ),
@@ -1433,7 +1031,7 @@ Widget build(BuildContext context) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PanelTrello(
+                    builder: (context) => PanelTrelloOpe(
                       processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -1511,26 +1109,21 @@ Widget build(BuildContext context) {
                       id: listas[i].id,
                       titulo: listas[i].titulo,
                       tarjetas: tarjetasPorLista[i],
-                      onTituloEditado: (nuevoTitulo) => editarTituloLista(i, nuevoTitulo),
-                      onAgregarTarjeta: (tarjeta) => agregarTarjeta(i, tarjeta),
+          
                       agregandoTarjeta: indiceListaEditandoTarjeta == i,
                       mostrarCampoNuevaTarjeta: () => mostrarCampoNuevaTarjeta(i),
                       keyAgregarTarjeta: keysAgregarTarjeta[i],
                       onEstadoChanged: (indexTarjeta, newEstado) {
                         _cambiarEstadoTarjeta(i, indexTarjeta, newEstado);
                       },
-                      onTarjetaActualizada: (indexTarjeta, tarjetaActualizada) {
-                        _actualizarTarjetaEnBackend(i, indexTarjeta, tarjetaActualizada);
-                      },
-                      onEliminarTarjeta: (indexTarjeta, tarjetaId) {
-                        _eliminarTarjetaDelBackend(i, indexTarjeta, tarjetaId);
-                      },
-                      onEliminarLista: (listId) => _eliminarListaDelBackend(i, listId),
+                    
+                    
+                     
                       ocultarEdicion: ocultarEdicion,
                           // ... (tus parámetros existentes)
                         ),
                       ),
-                    BotonAgregarLista(onAgregar: agregarListaNueva),
+               
                   ],
                 ),
               ),
@@ -1550,14 +1143,14 @@ class ListaTrello extends StatefulWidget {
   final List<Tarjeta> tarjetas;
   final bool agregandoTarjeta;
   final GlobalKey? keyAgregarTarjeta;
-  final ValueChanged<String> onTituloEditado;
-  final ValueChanged<Tarjeta> onAgregarTarjeta;
+
+
   final VoidCallback mostrarCampoNuevaTarjeta;
   final VoidCallback ocultarEdicion;
-  final Function(int index, Tarjeta tarjeta) onTarjetaActualizada;
-  final Function(int index, String idTarjeta) onEliminarTarjeta;
+
+
   final Function(int index, EstadoTarjeta nuevoEstado) onEstadoChanged;
-  final ValueChanged<String> onEliminarLista;
+
 
   const ListaTrello({
     super.key,
@@ -1566,14 +1159,14 @@ class ListaTrello extends StatefulWidget {
     required this.tarjetas,
     required this.agregandoTarjeta,
     this.keyAgregarTarjeta,
-    required this.onTituloEditado,
-    required this.onAgregarTarjeta,
+
+
     required this.mostrarCampoNuevaTarjeta,
     required this.ocultarEdicion,
-    required this.onTarjetaActualizada,
-    required this.onEliminarTarjeta,
+
+
     required this.onEstadoChanged,
-    required this.onEliminarLista,
+
   });
 
   @override
@@ -1595,9 +1188,7 @@ class _ListaTrelloState extends State<ListaTrello> {
     _controllerTituloLista = TextEditingController(text: widget.titulo);
     _focusNodeTituloLista = FocusNode();
     _focusNodeTituloLista.addListener(() {
-      if (!_focusNodeTituloLista.hasFocus && editandoTituloLista) {
-        guardarTituloLista();
-      }
+     
     });
     if (widget.agregandoTarjeta) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1615,13 +1206,7 @@ class _ListaTrelloState extends State<ListaTrello> {
     super.dispose();
   }
 
-  void guardarTituloLista() {
-    setState(() {
-      editandoTituloLista = false;
-      widget.onTituloEditado(_controllerTituloLista.text.trim());
-      _focusNodeTituloLista.unfocus();
-    });
-  }
+
 
   void activarEdicionTituloLista() {
     setState(() {
@@ -1636,186 +1221,108 @@ class _ListaTrelloState extends State<ListaTrello> {
     });
   }
 
-  void agregarTarjetaLocal() {
-    final texto = _controllerNuevaTarjeta.text.trim();
-    if (texto.isEmpty) return;
+  
+ void mostrarModalTarjeta(int indexTarjeta) {
+  Tarjeta tarjeta = widget.tarjetas[indexTarjeta];
+  
+  final Map<String, dynamic> tiempoInfo = tarjeta.tiempoRestanteCalculado;
+  final String diasHorasRestantesTexto = tiempoInfo['text'];
+  final Color diasHorasRestantesColor = tiempoInfo['color'] as Color;
 
-    final nuevaTarjeta = Tarjeta(
-      titulo: texto,
-      estado: EstadoTarjeta.pendiente,
-      idLista: widget.id,
-    );
-    print(
-      'FLUTTER DEBUG LISTATRELLO: ID de la nueva tarjeta ANTES de enviar al API: ${nuevaTarjeta.id}',
-    );
-
-    widget.onAgregarTarjeta(nuevaTarjeta);
-    _controllerNuevaTarjeta.clear();
-    _focusNodeNuevaTarjeta.unfocus();
-    widget.ocultarEdicion();
-  }
-
-  void mostrarModalTarjeta(int indexTarjeta) {
-    Tarjeta tarjeta = widget.tarjetas[indexTarjeta];
-    final tituloController = TextEditingController(text: tarjeta.titulo);
-    final descripcionController = TextEditingController(text: tarjeta.descripcion);
-    final miembroController = TextEditingController(text: tarjeta.miembro);
-    DateTime? fechaInicio = tarjeta.fechaInicio;
-    DateTime? fechaVencimiento = tarjeta.fechaVencimiento;
-    EstadoTarjeta estadoActual = tarjeta.estado;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateModal) {
-            final Map<String, dynamic> tiempoInfo = tarjeta.tiempoRestanteCalculado;
-            final String diasHorasRestantesTexto = tiempoInfo['text'];
-            final Color diasHorasRestantesColor = tiempoInfo['color'] as Color;
-
-            final List<Widget> messagesAlert = [];
-
-            if (estadoActual == EstadoTarjeta.hecho) {
-              messagesAlert.add(
-                const Text("✅ Cumplido", style: TextStyle(color: Colors.green)), // Texto en verde
-              );
-            }
-
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              title: TextField(
-                controller: tituloController,
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(
+          tarjeta.titulo,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (tarjeta.estado == EstadoTarjeta.hecho)
+                const Text("✅ Cumplido", style: TextStyle(color: Colors.green)),
+              const SizedBox(height: 8),
+              Text(
+                diasHorasRestantesTexto,
                 style: const TextStyle(
                   color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'Título de la tarjeta',
-                  hintStyle: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.normal,
+              ),
+              const SizedBox(height: 16),
+              if (tarjeta.miembro.isNotEmpty)
+                buildInfoRow("👤 Miembro", tarjeta.miembro),
+              if (tarjeta.descripcion.isNotEmpty)
+                buildInfoRow("📝 Descripción", tarjeta.descripcion),
+              buildInfoRow("📝 Estado", _getEstadoText(tarjeta.estado)),
+              if (tarjeta.fechaInicio != null)
+                buildInfoRow(
+                  "📅 Fecha de inicio", 
+                  DateFormat('dd/MM/yyyy').format(tarjeta.fechaInicio!)
+                ),
+              if (tarjeta.fechaVencimiento != null)
+                buildInfoRow(
+                  "⏳ Fecha de vencimiento", 
+                  DateFormat('dd/MM/yyyy HH:mm').format(tarjeta.fechaVencimiento!)
                   ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    ...messagesAlert,
-                    const SizedBox(height: 8),
-                    Text(
-                      diasHorasRestantesTexto,
-                      style: const TextStyle( // Texto de fecha en negro
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    buildTextField("👤 Miembro", miembroController),
-                    buildTextField("📝 Descripción", descripcionController),
-                    buildEstadoDropdown(estadoActual, (newValue) {
-                      setStateModal(() {
-                        estadoActual = newValue;
-                        tarjeta = tarjeta.copyWith(estado: newValue);
-                      });
-                    }),
-                    buildDatePicker(
-                      "📅 Fecha de inicio",
-                      (pickedDate) {
-                        setStateModal(() {
-                          fechaInicio = pickedDate;
-                          tarjeta = tarjeta.copyWith(fechaInicio: pickedDate);
-                        });
-                      },
-                      fechaInicio,
-                      includeTime: false,
-                    ),
-                    buildDatePicker(
-                      "⏳ Fecha de vencimiento",
-                      (pickedDate) {
-                        setStateModal(() {
-                          fechaVencimiento = pickedDate;
-                          tarjeta = tarjeta.copyWith(fechaVencimiento: pickedDate);
-                        });
-                      },
-                      fechaVencimiento,
-                      includeTime: true,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text("Cancelar", style: TextStyle(color: Colors.black)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    Tarjeta tarjetaActualizada = Tarjeta(
-                      id: tarjeta.id,
-                      titulo: tituloController.text.trim(),
-                      descripcion: descripcionController.text.trim(),
-                      miembro: miembroController.text.trim(),
-                      tarea: tarjeta.tarea,
-                      tiempo: tarjeta.tiempo,
-                      fechaInicio: fechaInicio,
-                      fechaVencimiento: fechaVencimiento,
-                      estado: estadoActual,
-                      fechaCompletado: tarjeta.fechaCompletado,
-                      idLista: tarjeta.idLista,
-                    );
-                    widget.onTarjetaActualizada(indexTarjeta, tarjetaActualizada);
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text("Guardar", style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () async {
-                    final bool confirmar = await showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: Colors.white,
-                        title: const Text('Confirmar eliminación', style: TextStyle(color: Colors.black)),
-                        content: const Text('¿Estás seguro de que quieres eliminar esta tarjeta?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancelar', style: TextStyle(color: Colors.black)),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-                          ),
-                        ],
-                      ),
-                    );
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cerrar", style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      );
+    },
+  );
+}
 
-                    if (confirmar == true && context.mounted) {
-                      Navigator.of(context).pop();
-                      if (tarjeta.id != null) {
-                        widget.onEliminarTarjeta(indexTarjeta, tarjeta.id!);
-                      }
-                    }
-                  },
-                  child: const Text("Eliminar", style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+String _getEstadoText(EstadoTarjeta estado) {
+  switch (estado) {
+    case EstadoTarjeta.hecho:
+      return 'Completado';
+    case EstadoTarjeta.en_progreso:
+      return 'En progreso';
+    case EstadoTarjeta.pendiente:
+      return 'Pendiente';
   }
+}
+
+Widget buildInfoRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget buildTextField(String label, TextEditingController controller) {
     return Column(
@@ -2057,7 +1564,7 @@ class _ListaTrelloState extends State<ListaTrello> {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: activarEdicionTituloLista,
+                  
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                     child: editandoTituloLista
@@ -2074,7 +1581,7 @@ class _ListaTrelloState extends State<ListaTrello> {
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
                             ),
-                            onEditingComplete: guardarTituloLista,
+                         
                           )
                         : Text(
                             widget.titulo,
@@ -2087,40 +1594,7 @@ class _ListaTrelloState extends State<ListaTrello> {
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_forever, color: Colors.red),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        backgroundColor: Colors.white,
-                        title: const Text('Eliminar Lista', style: TextStyle(color: Colors.black)),
-                        content: Text(
-                          '¿Estás seguro de que quieres eliminar la lista "${widget.titulo}"? Esta acción no se puede deshacer.',
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        actions: <Widget>[
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar', style: TextStyle(color: Colors.black)),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              widget.onEliminarLista(widget.id);
-                            },
-                            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
+            
             ],
           ),
           Flexible(
@@ -2169,55 +1643,38 @@ class _ListaTrelloState extends State<ListaTrello> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: isHovered ? 24 : 0,
-                                      height: 24,
-                                      margin: const EdgeInsets.only(right: 8, top: 2),
-                                      child: isHovered
-                                          ? GestureDetector(
-                                              onTap: () {
-                                                EstadoTarjeta nuevoEstado;
-                                                if (tarjeta.estado == EstadoTarjeta.hecho) {
-                                                  nuevoEstado = EstadoTarjeta.pendiente;
-                                                } else {
-                                                  nuevoEstado = EstadoTarjeta.hecho;
-                                                }
-                                                widget.onEstadoChanged(index, nuevoEstado);
-                                              },
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: material.Border.all(
-                                                    color: _getColorForEstado(tarjeta.estado),
-                                                    width: 2,
-                                                  ),
-                                                  color: tarjeta.estado == EstadoTarjeta.hecho
-                                                      ? Colors.green // Cambiado de rojo a verde
-                                                      : Colors.transparent,
-                                                ),
-                                                child: Center(
-                                                  child: tarjeta.estado == EstadoTarjeta.hecho
-                                                      ? const Icon(
-                                                          Icons.check,
-                                                          size: 16,
-                                                          color: Colors.white,
-                                                        )
-                                                      : null,
-                                                ),
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        tarjeta.titulo,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
+                                  Container(
+      width: 24,
+      height: 24,
+      margin: const EdgeInsets.only(right: 8, top: 2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+      
+        color: tarjeta.estado == EstadoTarjeta.hecho
+            ? Colors.green
+            : Colors.transparent,
+      ),
+      child: Center(
+        child: tarjeta.estado == EstadoTarjeta.hecho
+            ? const Icon(
+                Icons.check,
+                size: 16,
+                color: Colors.white,
+              )
+            : null,
+      ),
+    ),
+    Expanded(
+      child: Text(
+        tarjeta.titulo,
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ),
+
+
                                   ],
                                 ),
                                 if (tarjeta.miembro.isNotEmpty)
@@ -2276,18 +1733,14 @@ class _ListaTrelloState extends State<ListaTrello> {
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                     ),
-                    onSubmitted: (_) => agregarTarjetaLocal(),
+                    onSubmitted: (_) => (),
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
                   ),
                   const SizedBox(height: 8.0),
                   Row(
                     children: [
-                      ElevatedButton(
-                        onPressed: agregarTarjetaLocal,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                        child: const Text('Añadir tarjeta', style: TextStyle(color: Colors.white)),
-                      ),
+                      
                       const SizedBox(width: 8.0),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.grey),
@@ -2298,22 +1751,7 @@ class _ListaTrelloState extends State<ListaTrello> {
                 ],
               ),
             ),
-          if (!widget.agregandoTarjeta)
-            TextButton(
-              onPressed: widget.mostrarCampoNuevaTarjeta,
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey,
-                minimumSize: const Size(double.infinity, 36),
-                alignment: Alignment.centerLeft,
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.add, color: Colors.grey),
-                  SizedBox(width: 8.0),
-                  Text('Añadir otra tarjeta', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
+          
         ],
       ),
     );

@@ -205,7 +205,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? ciudadSeleccionada;
     String? areaSeleccionada;
 
-    final roles = ['Gerencia', 'Usuario', 'Supervisor'];
+final roles = ['SWT', 'Cont', 'Supervisor', 'A.R', 'CX', 'SIR', 'SD', 'Op'];
     final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
     final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
@@ -462,7 +462,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                     'area': areaSeleccionada,
                                   }),
                                 );
-
+ if (!mounted) return; 
                                 if (response.statusCode == 200 || response.statusCode == 201) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
@@ -512,7 +512,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     String? ciudadSeleccionada = usuario['ciudad'];
     String? areaSeleccionada = usuario['area'];
 
-    final roles = ['Gerencia', 'Usuario', 'Supervisor'];
+final roles = ['SWT', 'Cont', 'Supervisor', 'A.R', 'CX', 'SIR', 'SD', 'Op'];
     final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
     final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
@@ -740,7 +740,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                   headers: {'Content-Type': 'application/json'},
                                   body: jsonEncode(body),
                                 );
-
+if (!mounted) return;
                                 if (response.statusCode == 200) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
