@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../login/login.dart';
 
-class Custom extends StatelessWidget {
+class Custom22 extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemTap;
 
-  Custom({ 
+  Custom22({
     Key? key,
     required this.selectedIndex,
     required this.onItemTap,
@@ -23,6 +23,7 @@ class Custom extends StatelessWidget {
   final List<String> _titles = [
     'Inicio',
     'Usuarios',
+    'Tabla Proyecto',
     'Cerrar sesión',
   ];
 

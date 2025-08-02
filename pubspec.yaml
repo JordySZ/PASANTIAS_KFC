@@ -37,6 +37,7 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.3.3
   excel: ^2.0.1
+  file_picker: ^5.2.5
   path_provider: ^2.1.1
   open_file: ^3.3.1
   # The following adds the Cupertino Icons font to your application.

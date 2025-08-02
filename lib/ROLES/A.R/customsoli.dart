@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../login/login.dart';
 
-class CustomDrawer extends StatelessWidget {
+class CustomSoli extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemTap;
 
-  CustomDrawer({
+  CustomSoli({
     Key? key,
     required this.selectedIndex,
     required this.onItemTap,
@@ -23,8 +23,8 @@ class CustomDrawer extends StatelessWidget {
   final List<String> _titles = [
     'Inicio',
     'Usuarios',
-    'Crear nuevo procesos',
-     'Tabla Proyecto',
+    'Tabla Proyecto',
+    'Solicitud de Proceso',
     'Cerrar sesión',
   ];
 

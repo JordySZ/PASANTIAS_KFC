@@ -237,6 +237,8 @@ final TextEditingController _endTimeController = TextEditingController();
       });
     }
   }
+
+  
  Future<void> _actualizarEstadoProceso(String nuevoEstado) async {
   print('Intentando actualizar estado a: $nuevoEstado');
   if (_currentProcessCollectionName == null || !mounted) {
@@ -840,6 +842,8 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
     }
   }
 
+  
+
   void _actualizarTarjetaEnBackend(
     int indexLista,
     int indexTarjeta,
@@ -928,6 +932,7 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
     tarjetaToUpdate = tarjetaToUpdate.copyWith(
       estado: newEstado,
       fechaCompletado: newFechaCompletado,
+     
     );
 
     try {
@@ -967,7 +972,70 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
     }
   }
 
-  
+  void _mostrarDialogoTienda(Tarjeta tarjeta, int listaIndex, int tarjetaIndex) {
+  final TextEditingController descripcionController = 
+    TextEditingController(text: tarjeta.descripcionTienda);
+  String? tiendaSeleccionada = tarjeta.tiendaAsignada.isNotEmpty 
+    ? tarjeta.tiendaAsignada 
+    : null;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Asignación de código de tienda'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: tiendaSeleccionada,
+              items: ['Tienda 1', 'Tienda 2', 'Tienda 3']
+                  .map((tienda) => DropdownMenuItem(
+                        value: tienda,
+                        child: Text(tienda),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                tiendaSeleccionada = value;
+              },
+              decoration: const InputDecoration(
+                labelText: 'Seleccione una tienda',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: descripcionController,
+              decoration: const InputDecoration(
+                labelText: 'Descripción',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final tarjetaActualizada = tarjeta.copyWith(
+                tiendaAsignada: tiendaSeleccionada ?? '',
+                descripcionTienda: descripcionController.text,
+              );
+              _actualizarTarjetaEnBackend(
+                  listaIndex, tarjetaIndex, tarjetaActualizada);
+              Navigator.pop(context);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
  @override
 Widget build(BuildContext context) {
@@ -1116,14 +1184,16 @@ Widget build(BuildContext context) {
                       onEstadoChanged: (indexTarjeta, newEstado) {
                         _cambiarEstadoTarjeta(i, indexTarjeta, newEstado);
                       },
-                    
-                    
-                     
-                      ocultarEdicion: ocultarEdicion,
-                          // ... (tus parámetros existentes)
-                        ),
-                      ),
-               
+    onTiendaSelected: (indexTarjeta) {
+      _mostrarDialogoTienda(
+        tarjetasPorLista[i][indexTarjeta], 
+        i,  // índice de la lista
+        indexTarjeta  // índice de la tarjeta
+      );
+    },
+    ocultarEdicion: ocultarEdicion,
+  ),
+)
                   ],
                 ),
               ),
@@ -1150,7 +1220,7 @@ class ListaTrello extends StatefulWidget {
 
 
   final Function(int index, EstadoTarjeta nuevoEstado) onEstadoChanged;
-
+final Function(int index) onTiendaSelected; 
 
   const ListaTrello({
     super.key,
@@ -1166,7 +1236,7 @@ class ListaTrello extends StatefulWidget {
 
 
     required this.onEstadoChanged,
-
+ required this.onTiendaSelected, // <-- Añade este parámetro
   });
 
   @override
@@ -1177,10 +1247,13 @@ class _ListaTrelloState extends State<ListaTrello> {
   Set<int> tarjetasEnHover = {};
   late bool editandoTituloLista;
   late TextEditingController _controllerTituloLista;
+    final ApiService _apiService = ApiService();
+      List<List<Tarjeta>> tarjetasPorLista = [];
   late FocusNode _focusNodeTituloLista;
+    String? _currentProcessCollectionName;
   final TextEditingController _controllerNuevaTarjeta = TextEditingController();
   final FocusNode _focusNodeNuevaTarjeta = FocusNode();
-
+ 
   @override
   void initState() {
     super.initState();
@@ -1544,7 +1617,128 @@ Widget buildInfoRow(String label, String value) {
          return Colors.grey.shade600; // Gris más oscuro
     }
   }
+void _mostrarDialogoTienda(Tarjeta tarjeta, int listaIndex, int tarjetaIndex) {
+  final TextEditingController descripcionController = 
+    TextEditingController(text: tarjeta.descripcionTienda);
+  String? tiendaSeleccionada = tarjeta.tiendaAsignada.isNotEmpty 
+    ? tarjeta.tiendaAsignada 
+    : null;
 
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Asignación de código de tienda'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: tiendaSeleccionada,
+              items: ['Tienda 1', 'Tienda 2', 'Tienda 3']
+                  .map((tienda) => DropdownMenuItem(
+                        value: tienda,
+                        child: Text(tienda),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                tiendaSeleccionada = value;
+              },
+              decoration: InputDecoration(
+                labelText: 'Seleccione una tienda',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: descripcionController,
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final tarjetaActualizada = tarjeta.copyWith(
+                tiendaAsignada: tiendaSeleccionada ?? '',
+                descripcionTienda: descripcionController.text,
+              );
+              _actualizarTarjetaEnBackend(
+                  listaIndex, tarjetaIndex, tarjetaActualizada);
+              Navigator.pop(context);
+            },
+            child: Text('Guardar'),
+          ),
+        ],
+      );
+    },
+  );
+}
+ void _actualizarTarjetaEnBackend(
+    int indexLista,
+    int indexTarjeta,
+    Tarjeta tarjetaActualizada,
+  ) async {
+    print(
+      'FLUTTER DEBUG TABLERO: _actualizarTarjetaEnBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
+    );
+    if (_currentProcessCollectionName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, crea o selecciona un proceso primero para actualizar tarjetas.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    try {
+      final Tarjeta? updatedCard = await _apiService.updateCard(
+        _currentProcessCollectionName!,
+        tarjetaActualizada,
+      );
+      if (updatedCard != null) {
+        setState(() {
+          tarjetasPorLista[indexLista][indexTarjeta] = updatedCard;
+        });
+        print(
+          'FLUTTER DEBUG TABLERO: Tarjeta actualizada exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tarjeta "${updatedCard.titulo}" actualizada exitosamente.'),
+            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
+          ),
+        );
+      } else {
+        print(
+          'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - _apiService.updateCard devolvió null.',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al actualizar la tarjeta.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print(
+        'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - Excepción al actualizar tarjeta: $e',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión al actualizar la tarjeta: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1617,7 +1811,13 @@ Widget buildInfoRow(String label, String value) {
                   onEnter: (_) => setState(() => tarjetasEnHover.add(index)),
                   onExit: (_) => setState(() => tarjetasEnHover.remove(index)),
                   child: GestureDetector(
-                    onTap: () => mostrarModalTarjeta(index),
+    onTap: () {
+  if (tarjeta.titulo == 'Asignación de código de tienda') {
+    widget.onTiendaSelected(index); // Esto debería llamar a _mostrarDialogoTienda
+  } else {
+    mostrarModalTarjeta(index);
+  }
+},
                     child: Card(
                   color: const Color.fromARGB(255, 255, 255, 255), // Fondo blanco para mejor contraste
                    elevation: 7, 
@@ -1677,6 +1877,23 @@ Widget buildInfoRow(String label, String value) {
 
                                   ],
                                 ),
+                                if (tarjeta.tiendaAsignada.isNotEmpty)
+  Padding(
+    padding: const EdgeInsets.only(top: 4.0),
+    child: Row(
+      children: [
+        Icon(Icons.store, size: 14, color: Colors.grey),
+        SizedBox(width: 4),
+        Text(
+          '${tarjeta.tiendaAsignada}',
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
                                 if (tarjeta.miembro.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),

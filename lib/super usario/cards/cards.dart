@@ -3,6 +3,7 @@ import 'package:login_app/ROLES/Operaciones/op.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/home_page.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
+import 'package:login_app/super%20usario/projects_table.dart';
 import 'package:login_app/super%20usario/tabla/home_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:login_app/models/tarjeta.dart';
@@ -20,9 +21,23 @@ import 'package:flutter/material.dart' as material;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
-import 'dart:html' as html;
 
+import 'dart:html' as html;
+const List<String> miembrosPredefinidos = [
+  'DSI',
+  'Infraestructura',
+  'Operaciones',
+  'Contabilidad',
+  'Redes',
+  'Mesa de servicio',
+  'Trade',
+  'DragonTaill'
+];
 class TableroScreen extends StatefulWidget {
+  
+
+
+  
   final String? processName;
 
   const TableroScreen({super.key, this.processName,});
@@ -32,7 +47,9 @@ class TableroScreen extends StatefulWidget {
 }
 
 class _TableroScreenState extends State<TableroScreen> {
-  // Esta función debe estar en tu clase _TableroScreenState, al mismo nivel que otros métodos
+
+
+
 Future<void> _exportToExcel() async {
   // Validar que exista información del proceso
   if (_currentProcessDetails == null) {
@@ -1385,7 +1402,16 @@ Widget build(BuildContext context) {
     onPressed: () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => DashboardPage()),
+   MaterialPageRoute(
+    builder: (context) => ProjectsTable(
+      projects: AppData.projects!,
+      apiService: AppData.apiService!,
+      refreshData: AppData.refreshData!,
+      processStatusNotifier: AppData.processStatusNotifier!,
+      isLoading: AppData.isLoading,
+      errorMessage: AppData.errorMessage,
+    ),
+  ),
       );
     },
   ),
@@ -1659,7 +1685,9 @@ class _ListaTrelloState extends State<ListaTrello> {
     Tarjeta tarjeta = widget.tarjetas[indexTarjeta];
     final tituloController = TextEditingController(text: tarjeta.titulo);
     final descripcionController = TextEditingController(text: tarjeta.descripcion);
-    final miembroController = TextEditingController(text: tarjeta.miembro);
+    List<String> miembrosSeleccionados = tarjeta.miembro.isNotEmpty 
+      ? tarjeta.miembro.split(', ') 
+      : [];
     DateTime? fechaInicio = tarjeta.fechaInicio;
     DateTime? fechaVencimiento = tarjeta.fechaVencimiento;
     EstadoTarjeta estadoActual = tarjeta.estado;
@@ -1704,28 +1732,39 @@ class _ListaTrelloState extends State<ListaTrello> {
                 keyboardType: TextInputType.multiline,
               ),
               content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    ...messagesAlert,
-                    const SizedBox(height: 8),
-                    Text(
-                      diasHorasRestantesTexto,
-                      style: const TextStyle( // Texto de fecha en negro
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    buildTextField("👤 Miembro", miembroController),
-                    buildTextField("📝 Descripción", descripcionController),
-                    buildEstadoDropdown(estadoActual, (newValue) {
-                      setStateModal(() {
-                        estadoActual = newValue;
-                        tarjeta = tarjeta.copyWith(estado: newValue);
-                      });
-                    }),
+                child:  Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 10),
+      ...messagesAlert,
+      const SizedBox(height: 8),
+      Text(
+        diasHorasRestantesTexto,
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      const SizedBox(height: 16),
+      
+      // Nuevo widget para selección de miembros
+      buildMultiMemberSelector(
+        miembrosSeleccionados,
+        (nuevosMiembros) {
+          setStateModal(() {
+            miembrosSeleccionados = nuevosMiembros;
+          });
+        },
+      ),
+      
+      // Resto de los campos permanece igual
+      buildTextField("📝 Descripción", descripcionController),
+      buildEstadoDropdown(estadoActual, (newValue) {
+        setStateModal(() {
+          estadoActual = newValue;
+          tarjeta = tarjeta.copyWith(estado: newValue);
+        });
+      }),
                     buildDatePicker(
                       "📅 Fecha de inicio",
                       (pickedDate) {
@@ -1757,13 +1796,13 @@ class _ListaTrelloState extends State<ListaTrello> {
                   child: const Text("Cancelar", style: TextStyle(color: Colors.black)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    Tarjeta tarjetaActualizada = Tarjeta(
-                      id: tarjeta.id,
-                      titulo: tituloController.text.trim(),
-                      descripcion: descripcionController.text.trim(),
-                      miembro: miembroController.text.trim(),
+    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+    onPressed: () {
+      Tarjeta tarjetaActualizada = Tarjeta(
+        id: tarjeta.id,
+        titulo: tituloController.text.trim(),
+        descripcion: descripcionController.text.trim(),
+        miembro: miembrosSeleccionados.join(', '), 
                       tarea: tarjeta.tarea,
                       tiempo: tarjeta.tiempo,
                       fechaInicio: fechaInicio,
@@ -1816,7 +1855,115 @@ class _ListaTrelloState extends State<ListaTrello> {
       },
     );
   }
-
+  
+Widget buildMultiMemberSelector(
+  List<String> miembrosSeleccionados,
+  ValueChanged<List<String>> onChanged,
+) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(bottom: 8.0),
+        child: Text(
+          "👤 Miembros",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: ExpansionTile(
+          title: Text(
+            miembrosSeleccionados.isEmpty 
+                ? "Seleccionar miembros..." 
+                : miembrosSeleccionados.join(", "),
+            style: const TextStyle(color: Colors.black),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  // Mostrar miembros seleccionados primero
+                  ...miembrosSeleccionados.map((miembro) {
+                    return ListTile(
+                      leading: const Icon(Icons.check_box, color: Colors.green),
+                      title: Text(miembro),
+                      onTap: () {
+                        onChanged(miembrosSeleccionados..remove(miembro));
+                      },
+                    );
+                  }).toList(),
+                  
+                  // Mostrar miembros disponibles
+                  ...miembrosPredefinidos.where((m) => !miembrosSeleccionados.contains(m)).map((miembro) {
+                    return ListTile(
+                      leading: const Icon(Icons.check_box_outline_blank),
+                      title: Text(miembro),
+                      onTap: () {
+                        onChanged(miembrosSeleccionados..add(miembro));
+                      },
+                    );
+                  }).toList(),
+                  
+                  // Opción para agregar un miembro personalizado
+                  ListTile(
+                    leading: const Icon(Icons.add),
+                    title: const Text("Agregar otro miembro"),
+                    onTap: () async {
+                      final nuevoMiembro = await showDialog<String>(
+                        context: context,
+                        builder: (context) {
+                          final controller = TextEditingController();
+                          return AlertDialog(
+                            title: const Text("Nuevo miembro"),
+                            content: TextField(
+                              controller: controller,
+                              decoration: const InputDecoration(
+                                hintText: "Nombre del miembro",
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancelar"),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                onPressed: () {
+                                  if (controller.text.trim().isNotEmpty) {
+                                    Navigator.pop(context, controller.text.trim());
+                                  }
+                                },
+                                child: const Text("Agregar", style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      
+                      if (nuevoMiembro != null && !miembrosSeleccionados.contains(nuevoMiembro)) {
+                        onChanged(miembrosSeleccionados..add(nuevoMiembro));
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+    ],
+  );
+}
   Widget buildTextField(String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2220,17 +2367,24 @@ class _ListaTrelloState extends State<ListaTrello> {
                                     ),
                                   ],
                                 ),
-                                if (tarjeta.miembro.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Text(
-                                      '👤 ${tarjeta.miembro}',
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
+                              if (tarjeta.miembro.isNotEmpty)
+  Padding(
+    padding: const EdgeInsets.only(top: 4.0),
+    child: Wrap(
+      spacing: 4.0,
+      children: tarjeta.miembro.split(', ').map((m) {
+        return Chip(
+          label: Text(m),
+          backgroundColor: Colors.grey[200],
+          labelStyle: const TextStyle(
+            color: Colors.black,
+            fontSize: 12,
+          ),
+          visualDensity: VisualDensity.compact,
+        );
+      }).toList(),
+    ),
+  ),
                                 if (tarjeta.fechaVencimiento != null || tarjeta.fechaInicio != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),

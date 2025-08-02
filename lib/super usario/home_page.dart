@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
-
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
 import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
 import 'dart:async';
+import 'projects_table.dart';
+
 class Project {
   final String name;
   final String status;
@@ -35,8 +36,8 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
-   Timer? _completionCheckerTimer;
-List<Project> _completedProjectsToNotify = [];
+  Timer? _completionCheckerTimer;
+  List<Project> _completedProjectsToNotify = [];
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
   List<Project> _projects = [];
@@ -51,14 +52,7 @@ List<Project> _completedProjectsToNotify = [];
   int selectedCircleSegment = -1;
 
   int totalProyectos = 0;
-String _traducirEstado(String estado) {
-  switch (estado.toLowerCase()) {
-    case 'echo': return 'Completado';
-    case 'en proceso': return 'En progreso';
-    case 'pendiente': return 'Pendiente';
-    default: return estado;
-  }
-}
+
   // Colores empresariales
   final Color primaryColor = Colors.red[900]!;
   final Color secondaryColor = Colors.grey[800]!;
@@ -68,197 +62,194 @@ String _traducirEstado(String estado) {
   final Color mediumGrey = Colors.grey[500]!;
   final Color darkGrey = Colors.grey[700]!;
 
- @override
-void initState() {
-  super.initState();
-  initializeDateFormatting('es', null).then((_) {
-    _fetchProjectsData();
-  });
-  
-  processStatusNotifier.addListener(_handleProcessStatusChange);
-  
-  // Iniciar el timer para verificar finalización
-  _startCompletionChecker();
-}
-void _handleProcessStatusChange() {
-  if (!mounted) return;
-  
-  if (processStatusNotifier.value != null) {
-    final nuevoEstado = processStatusNotifier.value!;
+  @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting('es', null).then((_) {
+      _fetchProjectsData();
+    });
     
-    // Mostrar notificación solo si el estado es "completado"
-    if (nuevoEstado.toLowerCase() == 'echo') {
-      _mostrarAlertaProcesoCompletado();
-    }
-
-    // Opcional: Mostrar snackbar de confirmación
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Estado actualizado: ${_traducirEstado(nuevoEstado)}'),
-        backgroundColor: Colors.green[700],
-        duration: Duration(seconds: 3),
-      ),
-    );
-
-    // Actualizar datos
-    _fetchProjectsData();
-    
-    // Resetear el notifier
-    processStatusNotifier.value = null;
+    processStatusNotifier.addListener(_handleProcessStatusChange);
+    _startCompletionChecker();
   }
-}
-void _mostrarAlertaProcesoCompletado() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('¡Proceso Completado!'),
-        content: Text('Un proceso ha alcanzado su hora de finalización.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Aceptar'),
-          ),
-        ],
-      ),
-    );
-  });
-}
-void _startCompletionChecker() {
-  // Verificar cada minuto (ajusta el intervalo según necesites)
-  _completionCheckerTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+
+  @override
+  void dispose() {
+    processStatusNotifier.removeListener(_handleProcessStatusChange);
+    _completionCheckerTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleProcessStatusChange() {
     if (!mounted) return;
     
-    final now = DateTime.now().toLocal();
-    final completedProjects = _projects.where((project) {
-      try {
-        final endDate = DateTime.parse(project.endDate).toLocal();
-        // Proyecto que acaba de pasar su fecha límite y no está marcado como completado
-        return (now.isAfter(endDate) || now.isAtSameMomentAs(endDate)) && 
-               project.estado?.toLowerCase() != 'echo';
-      } catch (e) {
-        return false;
+    if (processStatusNotifier.value != null) {
+      final nuevoEstado = processStatusNotifier.value!;
+      
+      if (nuevoEstado.toLowerCase() == 'echo') {
+        _mostrarAlertaProcesoCompletado();
       }
-    }).toList();
 
-    if (completedProjects.isNotEmpty) {
-      setState(() {
-        _completedProjectsToNotify = completedProjects;
-      });
-      _showCompletionAlert();
-    }
-  });
-}
-
-Future<void> _updateProjectsStatus() async {
-  for (final project in _completedProjectsToNotify) {
-    try {
-      final updated = await _apiService.updateProcess(
-        project.name,
-        Process(
-          nombre_proceso: project.name,
-          startDate: DateTime.parse(project.startDate),
-          endDate: DateTime.parse(project.endDate),
-          estado: 'echo',
-          progress: 1.0, // Marcar como 100% completado
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Estado actualizado: ${_traducirEstado(nuevoEstado)}'),
+          backgroundColor: Colors.green[700],
+          duration: Duration(seconds: 3),
         ),
       );
-      
-      if (updated != null) {
-        // Actualizar la lista local
-        setState(() {
-          final index = _projects.indexWhere((p) => p.name == project.name);
-          if (index != -1) {
-            _projects[index] = Project(
-              name: project.name,
-              startDate: project.startDate,
-              endDate: project.endDate,
-              estado: 'echo',
-              progress: 1.0,
-            );
-          }
-        });
-      }
-    } catch (e) {
-      print('Error al actualizar el estado del proyecto: $e');
+
+      _fetchProjectsData();
+      processStatusNotifier.value = null;
     }
   }
-  
-  // Limpiar la lista de notificaciones
-  setState(() {
-    _completedProjectsToNotify = [];
-  });
-  
-  // Actualizar los datos
-  _fetchProjectsData();
-}
-void _showCompletionAlert() {
-  if (_completedProjectsToNotify.isEmpty || !mounted) return;
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(_completedProjectsToNotify.length == 1 
-            ? '¡Proceso completado!'
-            : '¡Procesos completados!'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: _completedProjectsToNotify.map((project) {
-              return ListTile(
-                title: Text(project.name),
-                subtitle: Text('Finalizó: ${_formatEndDate(project.endDate)}'),
-              );
-            }).toList(),
-          ),
+  void _mostrarAlertaProcesoCompletado() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text('¡Proceso Completado!'),
+          content: Text('Un proceso ha alcanzado su hora de finalización.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Aceptar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Actualizar el estado de los proyectos a "echo"
-              _updateProjectsStatus();
-              Navigator.pop(context);
-            },
-            child: Text('Aceptar'),
-          ),
-        ],
-      ),
-    );
-  });
-}
-Future<void> _fetchProjectsData() async {
-  setState(() {
-    _isLoadingProjects = true;
-    _projectsErrorMessage = null;
-  });
-  try {
-    final fetchedProcesses = await _apiService.getProcesses();
-    setState(() {
-      _projects = fetchedProcesses.map((process) => Project(
-        name: process.nombre_proceso,
-        startDate: process.startDate.toIso8601String(),
-        endDate: process.endDate.toIso8601String(),
-        progress: process.progress ?? 0.0,
-        estado: process.estado,
-      )).toList();
-      _projectsFiltered = _projects;
-      _isLoadingProjects = false;
-      _calculateProjectPercentages();
-    });
-    
-    // Reiniciar el checker con los nuevos datos
-    _completionCheckerTimer?.cancel();
-    _startCompletionChecker();
-  } catch (e) {
-    setState(() {
-      _projectsErrorMessage = 'Error al cargar los procesos: $e';
-      _isLoadingProjects = false;
+      );
     });
   }
-}
+
+  void _startCompletionChecker() {
+    _completionCheckerTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (!mounted) return;
+      
+      final now = DateTime.now().toLocal();
+      final completedProjects = _projects.where((project) {
+        try {
+          final endDate = DateTime.parse(project.endDate).toLocal();
+          return (now.isAfter(endDate) || now.isAtSameMomentAs(endDate)) && 
+                 project.estado?.toLowerCase() != 'echo';
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+
+      if (completedProjects.isNotEmpty) {
+        setState(() {
+          _completedProjectsToNotify = completedProjects;
+        });
+        _showCompletionAlert();
+      }
+    });
+  }
+
+  Future<void> _updateProjectsStatus() async {
+    for (final project in _completedProjectsToNotify) {
+      try {
+        final updated = await _apiService.updateProcess(
+          project.name,
+          Process(
+            nombre_proceso: project.name,
+            startDate: DateTime.parse(project.startDate),
+            endDate: DateTime.parse(project.endDate),
+            estado: 'echo',
+            progress: 1.0,
+          ),
+        );
+        
+        if (updated != null) {
+          setState(() {
+            final index = _projects.indexWhere((p) => p.name == project.name);
+            if (index != -1) {
+              _projects[index] = Project(
+                name: project.name,
+                startDate: project.startDate,
+                endDate: project.endDate,
+                estado: 'echo',
+                progress: 1.0,
+              );
+            }
+          });
+        }
+      } catch (e) {
+        print('Error al actualizar el estado del proyecto: $e');
+      }
+    }
+    
+    setState(() {
+      _completedProjectsToNotify = [];
+    });
+    _fetchProjectsData();
+  }
+
+  void _showCompletionAlert() {
+    if (_completedProjectsToNotify.isEmpty || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text(_completedProjectsToNotify.length == 1 
+              ? '¡Proceso completado!'
+              : '¡Procesos completados!'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _completedProjectsToNotify.map((project) {
+                return ListTile(
+                  title: Text(project.name),
+                  subtitle: Text('Finalizó: ${_formatEndDate(project.endDate)}'),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _updateProjectsStatus();
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Future<void> _fetchProjectsData() async {
+    setState(() {
+      _isLoadingProjects = true;
+      _projectsErrorMessage = null;
+    });
+    try {
+      final fetchedProcesses = await _apiService.getProcesses();
+      setState(() {
+        _projects = fetchedProcesses.map((process) => Project(
+          name: process.nombre_proceso,
+          startDate: process.startDate.toIso8601String(),
+          endDate: process.endDate.toIso8601String(),
+          progress: process.progress ?? 0.0,
+          estado: process.estado,
+        )).toList();
+        _projectsFiltered = _projects;
+        _isLoadingProjects = false;
+        _calculateProjectPercentages();
+      });
+      
+      _completionCheckerTimer?.cancel();
+      _startCompletionChecker();
+    } catch (e) {
+      setState(() {
+        _projectsErrorMessage = 'Error al cargar los procesos: $e';
+        _isLoadingProjects = false;
+      });
+    }
+  }
 
   void _calculateProjectPercentages() {
     if (_projects.isEmpty) {
@@ -271,21 +262,11 @@ Future<void> _fetchProjectsData() async {
       return;
     }
 
-    int completedCount =
-        _projects
-            .where((p) => (p.estado?.toLowerCase() ?? '') == 'echo')
-            .length;
-    int inProgressCount =
-        _projects
-            .where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso')
-            .length;
-    int pendingCount =
-        _projects
-            .where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente')
-            .length;
+    int completedCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'echo').length;
+    int inProgressCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso').length;
+    int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente').length;
 
-    int otherCount =
-        _projects.length - completedCount - inProgressCount - pendingCount;
+    int otherCount = _projects.length - completedCount - inProgressCount - pendingCount;
     pendingCount += otherCount;
 
     int total = _projects.length;
@@ -300,10 +281,9 @@ Future<void> _fetchProjectsData() async {
 
   void _filtrarProyectos(String query) {
     setState(() {
-      _projectsFiltered =
-          _projects
-              .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-              .toList();
+      _projectsFiltered = _projects
+          .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
     });
   }
 
@@ -382,30 +362,29 @@ Future<void> _fetchProjectsData() async {
     }
   }
 
-String _formatStartDate(String dateString) {
-  try {
-    final DateTime dateTime = DateTime.parse(dateString);
-    return '${dateTime.day.toString().padLeft(2, '0')}/'
-           '${dateTime.month.toString().padLeft(2, '0')}/'
-           '${dateTime.year}';
-  } catch (e) {
-    return 'Fecha Inválida';
+  String _formatStartDate(String dateString) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateString);
+      return '${dateTime.day.toString().padLeft(2, '0')}/'
+             '${dateTime.month.toString().padLeft(2, '0')}/'
+             '${dateTime.year}';
+    } catch (e) {
+      return 'Fecha Inválida';
+    }
   }
-}
 
-String _formatEndDate(String dateString) {
-  
-  try {
-    final DateTime dateTime = DateTime.parse(dateString).toLocal();
-    return '${dateTime.day.toString().padLeft(2, '0')}/'
-           '${dateTime.month.toString().padLeft(2, '0')}/'
-           '${dateTime.year} '
-           '(${dateTime.hour.toString().padLeft(2, '0')}:'
-           '${dateTime.minute.toString().padLeft(2, '0')})';
-  } catch (e) {
-    return 'Fecha Inválida';
+  String _formatEndDate(String dateString) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateString).toLocal();
+      return '${dateTime.day.toString().padLeft(2, '0')}/'
+             '${dateTime.month.toString().padLeft(2, '0')}/'
+             '${dateTime.year} '
+             '(${dateTime.hour.toString().padLeft(2, '0')}:'
+             '${dateTime.minute.toString().padLeft(2, '0')})';
+    } catch (e) {
+      return 'Fecha Inválida';
+    }
   }
-}
 
   void _onItemTapped(int index) {
     Navigator.of(context).pop();
@@ -431,7 +410,14 @@ String _formatEndDate(String dateString) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TableroScreen(processName: null),
+            builder: (context) => ProjectsTable(
+              projects: _projectsFiltered,
+              apiService: _apiService,
+              refreshData: _fetchProjectsData,
+              processStatusNotifier: processStatusNotifier,
+              isLoading: _isLoadingProjects,
+              errorMessage: _projectsErrorMessage,
+            ),
           ),
         );
         break;
@@ -513,118 +499,80 @@ String _formatEndDate(String dateString) {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0:
-        return 'Inicio';
-      case 1:
-        return 'Usuarios';
-      case 2:
-        return 'Gestión de Procesos';
-      case 3:
-        return 'Tablero de Proyectos';
-      case 4:
-        return 'Crear nuevo proceso';
-      default:
-        return 'Dashboard';
+      case 0: return 'Inicio';
+      case 1: return 'Usuarios';
+      case 2: return 'Gestión de Procesos';
+      case 3: return 'Tablero de Proyectos';
+      case 4: return 'Crear nuevo proceso';
+      default: return 'Dashboard';
     }
   }
 
   Widget _buildPageContent(int index) {
     switch (index) {
-      case 0:
-        return _homeContent();
-      case 1:
-        return UsuariosScreen();
-      case 2:
+      case 0: return _homeContent();
+      case 1: return ProjectsTable(
+        projects: _projectsFiltered,
+        apiService: _apiService,
+        refreshData: _fetchProjectsData,
+        processStatusNotifier: processStatusNotifier,
+        isLoading: _isLoadingProjects,
+        errorMessage: _projectsErrorMessage,
+      );
+      case 2: return UsuariosScreen();
       case 3:
-      case 4:
-        return TableroScreen(processName: null);
-      default:
-        return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
+      case 4: return TableroScreen(processName: null);
+      default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
     }
   }
 
-Widget _homeContent() {
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: Column(
-          children: [
-            Center(
-              child: SizedBox(
-                width: 600,
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  color: backgroundColor,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'Buscar Proyecto',
-                        labelStyle: TextStyle(color: darkGrey),
-                        prefixIcon: Icon(Icons.search, color: primaryColor),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
+  Widget _homeContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            children: [
+              const SizedBox(height: 30),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 800) {
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildPieChart(),
+                            const SizedBox(width: 40),
+                            _buildBarChart(constraints),
+                          ],
                         ),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: mediumGrey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: mediumGrey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: primaryColor,
-                            width: 2.0),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      onChanged: _filtrarProyectos,
-                    ),
-                  ),
-                ),
+                        const SizedBox(height: 40),
+                        _buildLineChart(constraints),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        _buildPieChart(),
+                        const SizedBox(height: 40),
+                        _buildBarChart(constraints),
+                        const SizedBox(height: 40),
+                        _buildLineChart(constraints),
+                      ],
+                    );
+                  }
+                },
               ),
-            ),
-            const SizedBox(height: 30),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 800) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPieChart(),
-                      const SizedBox(width: 40),
-                      _buildBarChart(constraints),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    children: [
-                      _buildPieChart(),
-                      const SizedBox(height: 40),
-                      _buildBarChart(constraints),
-                    ],
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 30),
-            _tableContent(),
-          ],
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildPieChart() {
     return Column(
@@ -700,14 +648,13 @@ Widget _homeContent() {
 
   Widget _buildLegendItem(Color color, String text, {bool isSelected = false}) {
     return Container(
-      decoration:
-          isSelected
-              ? BoxDecoration(
-                border: Border.all(color: color, width: 2),
-                borderRadius: BorderRadius.circular(6),
-                color: color.withOpacity(0.15),
-              )
-              : null,
+      decoration: isSelected
+          ? BoxDecoration(
+              border: Border.all(color: color, width: 2),
+              borderRadius: BorderRadius.circular(6),
+              color: color.withOpacity(0.15),
+            )
+          : null,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       margin: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -738,24 +685,10 @@ Widget _homeContent() {
       }
     }
 
-    const double barWidth = 20;
-    const double barSpace = 8;
-    const double groupSpace = 20;
-    const double leftPadding = 60;
-    const double rightPadding = 20;
-    const int monthCount = 12;
-
-    double totalContentWidth =
-        leftPadding +
-        monthCount * ((barWidth * 2) + barSpace + groupSpace) +
-        rightPadding;
-
-    double boxWidth = totalContentWidth > 600 ? totalContentWidth : 600;
-
-   return SingleChildScrollView(
+    return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SizedBox(
-        width: boxWidth,
+        width: 800,
         height: 370,
         child: Card(
           elevation: 4,
@@ -810,393 +743,91 @@ Widget _homeContent() {
     );
   }
 
-  Widget _tableContent() {
-    return _isLoadingProjects
-        ? Center(child: CircularProgressIndicator(color: primaryColor))
-        : _projectsErrorMessage != null
-        ? Center(
-          child: Text(
-            _projectsErrorMessage!,
-            style: TextStyle(color: primaryColor),
+  Widget _buildLineChart(BoxConstraints constraints) {
+    List<int> started = List.filled(12, 0);
+    List<int> closed = List.filled(12, 0);
+
+    for (var project in _projects) {
+      final start = DateTime.tryParse(project.startDate);
+      final end = DateTime.tryParse(project.endDate);
+
+      if (start != null) {
+        started[start.month - 1]++;
+      }
+
+      if (end != null) {
+        closed[end.month - 1]++;
+      }
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 800,
+        height: 370,
+        child: Card(
+          elevation: 4,
+          color: backgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        )
-        : SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Card(
-                elevation: 2,
-                color: backgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    'Tendencia Mensual de Proyectos',
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: textColor
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 240,
+                    child: CustomPaint(
+                      painter: LineChartPainter(
+                        months: const [
+                          'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                          'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+                        ],
+                        started: started,
+                        closed: closed,
+                        startedColor: primaryColor,
+                        closedColor: darkGrey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Tabla de Proyectos',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: textColor
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columns: [
-                            DataColumn(
-                              label: Text(
-                                'Nombre',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Estado',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Inicio',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Fin',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Acciones',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Editar',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Eliminar',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor
-                                ),
-                              ),
-                            ),
-                          ],
-                          rows:
-                              _projectsFiltered.map((project) {
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Text(project.name, style: TextStyle(color: textColor))),
-                                    DataCell(
-                                      Text(project.estado ?? 'Sin estado', style: TextStyle(color: textColor)),
-                                    ),
-                                    DataCell(
-                                      Text(_formatStartDate(project.startDate), style: TextStyle(color: textColor)),
-                                    ),
-                                    DataCell(
-                                      Text(_formatEndDate(project.endDate), style: TextStyle(color: textColor)),
-                                    ),
-                                    DataCell(
-                                      ElevatedButton.icon(
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder:
-                                                  (context) => TableroScreen(
-                                                    processName: project.name,
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                        icon: Icon(
-                                          Icons.visibility,
-                                          size: 18,
-                                          color: backgroundColor,
-                                        ),
-                                        label: Text(
-                                          'Ver Detalles',
-                                          style: TextStyle(fontSize: 12, color: backgroundColor),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: darkGrey,
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 8,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      ElevatedButton.icon(
-                                        onPressed: () => _showEditProjectDialog(project),
-                                        icon: Icon(Icons.edit, size: 18, color: backgroundColor),
-                                        label: Text('Editar', style: TextStyle(fontSize: 12, color: backgroundColor)),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: mediumGrey,
-                                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      ElevatedButton.icon(
-                                        onPressed: () {
-                                          _confirmDeleteProcess(
-                                            context,
-                                            project.name,
-                                          );
-                                        },
-                                        icon: Icon(
-                                          Icons.delete,
-                                          size: 18,
-                                          color: backgroundColor,
-                                        ),
-                                        label: Text(
-                                          'Eliminar',
-                                          style: TextStyle(fontSize: 12, color: backgroundColor),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: primaryColor,
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 8,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                        ),
-                      ),
+                      _buildLegendItem(primaryColor, 'Iniciados'),
+                      const SizedBox(width: 20),
+                      _buildLegendItem(darkGrey, 'Completados'),
                     ],
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
-  }
-
-String _formatDateTime(DateTime date) {
-  return '${date.day.toString().padLeft(2, '0')}/'
-         '${date.month.toString().padLeft(2, '0')}/'
-         '${date.year} '
-         '${date.hour.toString().padLeft(2, '0')}:'
-         '${date.minute.toString().padLeft(2, '0')}';
-}
-
-String _formatDateString(String isoDate) {
-  try {
-    final date = DateTime.parse(isoDate);
-    return _formatDateTime(date);
-  } catch (e) {
-    return isoDate;
-  }
-}
-
-DateTime? _parseDateString(String dateStr) {
-  try {
-    final parts = dateStr.split('/');
-    if (parts.length == 3) {
-      return DateTime(
-        int.parse(parts[2]),
-        int.parse(parts[1]),
-        int.parse(parts[0]),
-      );
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
-}
-
-String _parseToIsoDateString(String dateStr) {
-  try {
-    final parts = dateStr.split('/');
-    if (parts.length == 3) {
-      return DateTime(
-        int.parse(parts[2]),
-        int.parse(parts[1]),
-        int.parse(parts[0]),
-      ).toIso8601String();
-    }
-    return DateTime.now().toIso8601String();
-  } catch (e) {
-    return DateTime.now().toIso8601String();
-  }
-}
-
-void _showEditProjectDialog(Project project) {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: project.name);
-  final _statusController = TextEditingController(text: project.estado);
-  
-  final _startDateController = TextEditingController(
-    text: project.startDate != 'N/A' ? _formatDateString(project.startDate) : '',
-  );
-  final _endDateController = TextEditingController(
-    text: project.endDate != 'N/A' ? _formatDateString(project.endDate) : '',
-  );
-
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        backgroundColor: backgroundColor,
-        title: Text('Editar Proyecto', style: TextStyle(color: textColor)),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre del Proceso',
-                    labelStyle: TextStyle(color: darkGrey),
-                  ),
-                  validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
-                ),
-               
-              ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState?.validate() ?? false) {
-                await _updateProject(
-                  originalName: project.name,
-                  updatedName: _nameController.text,
-                  newStatus: _statusController.text,
-                  newStartDate: _startDateController.text.isNotEmpty
-                      ? _parseToIsoDateString(_startDateController.text)
-                      : project.startDate,
-                  newEndDate: _endDateController.text.isNotEmpty
-                      ? _parseToIsoDateString(_endDateController.text)
-                      : project.endDate,
-                );
-                if (mounted) Navigator.of(context).pop();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: backgroundColor,
-            ),
-            child: const Text('Guardar'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Future<void> _updateProject({
-  required String originalName,
-  required String updatedName,
-  required String newStatus,
-  required String newStartDate,
-  required String newEndDate,
-}) async {
-  if (mounted) Navigator.of(context).pop();
-  
-  setState(() => _isLoadingProjects = true);
-  
-  try {
-    final originalProject = _projects.firstWhere((p) => p.name == originalName);
-
-    final updatedProcess = Process(
-      id: null,
-      nombre_proceso: updatedName,
-      startDate: DateTime.parse(newStartDate),
-      endDate: DateTime.parse(newEndDate),
-      estado: newStatus,
-      progress: originalProject.progress,
+      ),
     );
+  }
 
-    final updated = await _apiService.updateProcess(
-      originalName,
-      updatedProcess,
-    );
-
-    if (updated != null) {
-      await _fetchProjectsData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Proceso "$updatedName" actualizado', style: TextStyle(color: backgroundColor)),
-            backgroundColor: Colors.green[700],
-          ),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar el proceso', style: TextStyle(color: backgroundColor)),
-            backgroundColor: primaryColor,
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}', style: TextStyle(color: backgroundColor)),
-          backgroundColor: primaryColor,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoadingProjects = false);
+  String _traducirEstado(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'echo': return 'Completado';
+      case 'en proceso': return 'En progreso';
+      case 'pendiente': return 'Pendiente';
+      default: return estado;
     }
   }
-}
 
   void _handleCircleTap(Offset localPos) {
     final double widgetSize = 220;
@@ -1256,18 +887,16 @@ class MultiSegmentCirclePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - strokeWidth / 2;
 
-    final backgroundPaint =
-        Paint()
-          ..color = Colors.grey[200]!
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth;
+    final backgroundPaint = Paint()
+      ..color = Colors.grey[200]!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
 
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    final paint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
     double startAngle = -pi / 2;
     final segments = [completedPercent, inProgressPercent, pendingPercent];
@@ -1275,8 +904,7 @@ class MultiSegmentCirclePainter extends CustomPainter {
     for (int i = 0; i < segments.length; i++) {
       paint.color = colors[i];
       double sweepAngle = 2 * pi * segments[i];
-      paint.strokeWidth =
-          (i == selectedSegment) ? strokeWidth + 8 : strokeWidth;
+      paint.strokeWidth = (i == selectedSegment) ? strokeWidth + 8 : strokeWidth;
 
       if (sweepAngle > 0) {
         canvas.drawArc(
@@ -1326,10 +954,9 @@ class BarChartPainter extends CustomPainter {
     final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;
     final double stepValue = maxValue > 0 ? (maxValue / yAxisSteps) : 1;
 
-    final axisPaint =
-        Paint()
-          ..color = Colors.grey[600]!
-          ..strokeWidth = 1.5;
+    final axisPaint = Paint()
+      ..color = Colors.grey[600]!
+      ..strokeWidth = 1.5;
 
     canvas.drawLine(
       Offset(leftPadding, topPadding),
@@ -1346,10 +973,7 @@ class BarChartPainter extends CustomPainter {
     final textStyle = TextStyle(color: Colors.grey[700], fontSize: 12);
     for (int i = 0; i <= yAxisSteps; i++) {
       final double value = i * stepValue;
-      final double y =
-          topPadding +
-          chartHeight -
-          (chartHeight * (value / (yAxisSteps * stepValue)));
+      final double y = topPadding + chartHeight - (chartHeight * (value / (yAxisSteps * stepValue)));
 
       canvas.drawLine(
         Offset(leftPadding, y),
@@ -1376,13 +1000,9 @@ class BarChartPainter extends CustomPainter {
     }
 
     for (int i = 0; i < monthCount; i++) {
-      double groupX =
-          leftPadding + i * ((barWidth * 2) + barSpace + groupSpace);
+      double groupX = leftPadding + i * ((barWidth * 2) + barSpace + groupSpace);
 
-      double startedHeight =
-          maxValue == 0
-              ? 0
-              : chartHeight * (started[i] / (yAxisSteps * stepValue));
+      double startedHeight = maxValue == 0 ? 0 : chartHeight * (started[i] / (yAxisSteps * stepValue));
       canvas.drawRect(
         Rect.fromLTWH(
           groupX,
@@ -1393,10 +1013,7 @@ class BarChartPainter extends CustomPainter {
         Paint()..color = Colors.red[900]!,
       );
 
-      double closedHeight =
-          maxValue == 0
-              ? 0
-              : chartHeight * (closed[i] / (yAxisSteps * stepValue));
+      double closedHeight = maxValue == 0 ? 0 : chartHeight * (closed[i] / (yAxisSteps * stepValue));
       canvas.drawRect(
         Rect.fromLTWH(
           groupX + barWidth + barSpace,
@@ -1425,6 +1042,160 @@ class BarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant BarChartPainter oldDelegate) {
+    return oldDelegate.started != started || oldDelegate.closed != closed;
+  }
+}
+
+class LineChartPainter extends CustomPainter {
+  final List<String> months;
+  final List<int> started;
+  final List<int> closed;
+  final Color startedColor;
+  final Color closedColor;
+
+  LineChartPainter({
+    required this.months,
+    required this.started,
+    required this.closed,
+    this.startedColor = Colors.red,
+    this.closedColor = Colors.grey,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double chartHeight = size.height - 80;
+    final double leftPadding = 60;
+    final double rightPadding = 20;
+    final double topPadding = 20;
+    final double bottomPadding = 60;
+    
+    final int maxValue = [...started, ...closed].reduce((a, b) => max(a, b));
+    final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;
+    final double stepValue = maxValue > 0 ? (maxValue / yAxisSteps) : 1;
+
+    // Draw axes
+    final axisPaint = Paint()
+      ..color = Colors.grey[600]!
+      ..strokeWidth = 1.5;
+
+    canvas.drawLine(
+      Offset(leftPadding, topPadding),
+      Offset(leftPadding, topPadding + chartHeight),
+      axisPaint,
+    );
+
+    canvas.drawLine(
+      Offset(leftPadding, topPadding + chartHeight),
+      Offset(size.width - rightPadding, topPadding + chartHeight),
+      axisPaint,
+    );
+
+    // Draw Y-axis labels
+    final textStyle = TextStyle(color: Colors.grey[700], fontSize: 12);
+    for (int i = 0; i <= yAxisSteps; i++) {
+      final double value = i * stepValue;
+      final double y = topPadding + chartHeight - (chartHeight * (value / (yAxisSteps * stepValue)));
+
+      canvas.drawLine(
+        Offset(leftPadding, y),
+        Offset(size.width - rightPadding, y),
+        Paint()
+          ..color = Colors.grey[300]!
+          ..strokeWidth = 0.5,
+      );
+
+      final textSpan = TextSpan(
+        text: value.toInt().toString(),
+        style: textStyle,
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textAlign: TextAlign.right,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      textPainter.paint(
+        canvas,
+        Offset(leftPadding - 8 - textPainter.width, y - textPainter.height / 2),
+      );
+    }
+
+    // Calculate x positions for each month
+    final double availableWidth = size.width - leftPadding - rightPadding;
+    final double monthSpacing = availableWidth / (months.length - 1);
+    
+    // Draw started projects line
+    final startedPoints = <Offset>[];
+    for (int i = 0; i < months.length; i++) {
+      double x = leftPadding + (i * monthSpacing);
+      double y = topPadding + chartHeight - 
+          (started[i] / (yAxisSteps * stepValue)) * chartHeight;
+      startedPoints.add(Offset(x, y));
+    }
+    
+    final startedPaint = Paint()
+      ..color = startedColor
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    
+    // Draw the line
+    for (int i = 0; i < startedPoints.length - 1; i++) {
+      canvas.drawLine(startedPoints[i], startedPoints[i+1], startedPaint);
+    }
+    
+    // Draw points
+    final pointPaint = Paint()
+      ..color = startedColor
+      ..style = PaintingStyle.fill;
+    
+    for (final point in startedPoints) {
+      canvas.drawCircle(point, 4, pointPaint);
+    }
+    
+    // Draw closed projects line
+    final closedPoints = <Offset>[];
+    for (int i = 0; i < months.length; i++) {
+      double x = leftPadding + (i * monthSpacing);
+      double y = topPadding + chartHeight - 
+          (closed[i] / (yAxisSteps * stepValue)) * chartHeight;
+      closedPoints.add(Offset(x, y));
+    }
+    
+    final closedPaint = Paint()
+      ..color = closedColor
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    
+    // Draw the line
+    for (int i = 0; i < closedPoints.length - 1; i++) {
+      canvas.drawLine(closedPoints[i], closedPoints[i+1], closedPaint);
+    }
+    
+    // Draw points
+    for (final point in closedPoints) {
+      canvas.drawCircle(point, 4, pointPaint..color = closedColor);
+    }
+
+    // Draw month labels
+    for (int i = 0; i < months.length; i++) {
+      final monthPainter = TextPainter(
+        text: TextSpan(text: months[i], style: textStyle),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      monthPainter.paint(
+        canvas,
+        Offset(
+          leftPadding + (i * monthSpacing) - monthPainter.width / 2,
+          topPadding + chartHeight + 5,
+        ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LineChartPainter oldDelegate) {
     return oldDelegate.started != started || oldDelegate.closed != closed;
   }
 }

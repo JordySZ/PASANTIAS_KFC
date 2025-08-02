@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 enum EstadoTarjeta { pendiente, en_progreso, hecho }
 
 class Tarjeta {
-  final String? id; // Debe ser nullable para nuevas tarjetas
+  final String? id;
   final String titulo;
   final String descripcion;
   final String miembro;
@@ -13,7 +13,9 @@ class Tarjeta {
   final DateTime? fechaVencimiento;
   final EstadoTarjeta estado;
   final DateTime? fechaCompletado;
-  final String idLista; // <--- ¡NUEVO CAMPO!
+  final String idLista;
+  final String tiendaAsignada;
+  final String descripcionTienda;
 
   Tarjeta({
     this.id,
@@ -26,12 +28,13 @@ class Tarjeta {
     this.fechaVencimiento,
     this.estado = EstadoTarjeta.pendiente,
     this.fechaCompletado,
-    required this.idLista, // <--- Ahora es requerido al crear una Tarjeta
+    required this.idLista,
+    this.tiendaAsignada = '',
+    this.descripcionTienda = '',
   });
 
   Map<String, dynamic> toMap() {
     return {
-      // Solo incluye '_id' si ya existe (para actualizaciones)
       if (id != null) '_id': id,
       'titulo': titulo,
       'descripcion': descripcion,
@@ -42,35 +45,36 @@ class Tarjeta {
       'fechaVencimiento': fechaVencimiento?.toUtc().toIso8601String(),
       'estado': estado.name,
       'fechaCompletado': fechaCompletado?.toUtc().toIso8601String(),
-      'idLista': idLista, // <--- Incluye el nuevo campo en el mapa
+      'idLista': idLista,
+      'tiendaAsignada': tiendaAsignada,
+      'descripcionTienda': descripcionTienda,
     };
   }
 
   factory Tarjeta.fromMap(Map<String, dynamic> map) {
     return Tarjeta(
-      id: map['_id'] as String,
+      id: map['_id'] as String?,
       titulo: map['titulo'] as String,
       descripcion: map['descripcion'] as String? ?? '',
       miembro: map['miembro'] as String? ?? '',
       tarea: map['tarea'] as String? ?? '',
       tiempo: map['tiempo'] as String? ?? '',
-      fechaInicio:
-          map['fechaInicio'] != null
-              ? DateTime.tryParse(map['fechaInicio'] as String)?.toLocal()
-              : null,
-      fechaVencimiento:
-          map['fechaVencimiento'] != null
-              ? DateTime.tryParse(map['fechaVencimiento'] as String)?.toLocal()
-              : null,
+      fechaInicio: map['fechaInicio'] != null
+          ? DateTime.tryParse(map['fechaInicio'] as String)?.toLocal()
+          : null,
+      fechaVencimiento: map['fechaVencimiento'] != null
+          ? DateTime.tryParse(map['fechaVencimiento'] as String)?.toLocal()
+          : null,
       estado: EstadoTarjeta.values.firstWhere(
         (e) => e.name == (map['estado'] as String? ?? 'pendiente'),
         orElse: () => EstadoTarjeta.pendiente,
       ),
-      fechaCompletado:
-          map['fechaCompletado'] != null
-              ? DateTime.tryParse(map['fechaCompletado'] as String)?.toLocal()
-              : null,
-      idLista: map['idLista'] as String, // <--- Parsear el nuevo campo
+      fechaCompletado: map['fechaCompletado'] != null
+          ? DateTime.tryParse(map['fechaCompletado'] as String)?.toLocal()
+          : null,
+      idLista: map['idLista'] as String,
+      tiendaAsignada: map['tiendaAsignada'] as String? ?? '',
+      descripcionTienda: map['descripcionTienda'] as String? ?? '',
     );
   }
 
@@ -85,7 +89,9 @@ class Tarjeta {
     DateTime? fechaVencimiento,
     EstadoTarjeta? estado,
     DateTime? fechaCompletado,
-    String? idLista, // <--- Añadir a copyWith
+    String? idLista,
+    String? tiendaAsignada,
+    String? descripcionTienda,
   }) {
     return Tarjeta(
       id: id ?? this.id,
@@ -98,7 +104,9 @@ class Tarjeta {
       fechaVencimiento: fechaVencimiento ?? this.fechaVencimiento,
       estado: estado ?? this.estado,
       fechaCompletado: fechaCompletado ?? this.fechaCompletado,
-      idLista: idLista ?? this.idLista, // <--- Asignar en copyWith
+      idLista: idLista ?? this.idLista,
+      tiendaAsignada: tiendaAsignada ?? this.tiendaAsignada,
+      descripcionTienda: descripcionTienda ?? this.descripcionTienda,
     );
   }
 
@@ -174,10 +182,9 @@ class Tarjeta {
       }
 
       return {
-        'text':
-            expiredTime.isEmpty
-                ? '⚠️ Vencido (hace menos de 1 minuto)'
-                : '⚠️ Vencido hace $expiredTime',
+        'text': expiredTime.isEmpty
+            ? '⚠️ Vencido (hace menos de 1 minuto)'
+            : '⚠️ Vencido hace $expiredTime',
         'color': Colors.red,
       };
     }
@@ -188,14 +195,12 @@ class Tarjeta {
 
     if (days > 0) {
       return {
-        'text':
-            '⏳ Faltan $days día${days == 1 ? '' : 's'}${hours > 0 ? ' y $hours hora${hours == 1 ? '' : 's'}' : ''}',
+        'text': '⏳ Faltan $days día${days == 1 ? '' : 's'}${hours > 0 ? ' y $hours hora${hours == 1 ? '' : 's'}' : ''}',
         'color': Colors.white70,
       };
     } else if (hours > 0) {
       return {
-        'text':
-            '⏳ Faltan $hours hora${hours == 1 ? '' : 's'}${minutes > 0 ? ' y $minutes minuto${minutes == 1 ? '' : 's'}' : ''}',
+        'text': '⏳ Faltan $hours hora${hours == 1 ? '' : 's'}${minutes > 0 ? ' y $minutes minuto${minutes == 1 ? '' : 's'}' : ''}',
         'color': Colors.white70,
       };
     } else if (minutes > 0) {
