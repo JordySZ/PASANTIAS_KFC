@@ -26,6 +26,7 @@ class KanbanTaskManager extends StatefulWidget {
 
 class _KanbanTaskManagerState extends State<KanbanTaskManager> {
   List<Map<String, dynamic>> tasks = [];
+  List<Map<String, dynamic>> listas = [];
 
   final TextEditingController titleController = TextEditingController();
   final TextEditingController statusController = TextEditingController();
@@ -38,6 +39,7 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
   void initState() {
     super.initState();
     fetchTasks();
+    fetchLists();
   }
 
   Future<void> fetchTasks() async {
@@ -99,6 +101,30 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
       print('Error al eliminar tarea: ${response.body}');
     }
   }
+
+  Future<void> fetchLists() async {
+  final url = Uri.parse('$baseUrl/procesos/${widget.processName}/lists');
+  final response = await http.get(url);
+
+  if (response.statusCode == 200) {
+    final raw = response.body;
+    print('🔹 RAW LIST DATA: $raw');
+    setState(() {
+      listas = List<Map<String, dynamic>>.from(json.decode(raw));
+    });
+  } else {
+    print('Error al obtener listas: ${response.body}');
+  }
+}
+
+String getTituloListaPorId(String? idLista) {
+  final lista = listas.firstWhere(
+    (l) => l['_id'] == idLista,
+    orElse: () => {'titulo': 'Sin lista'},
+  );
+  return lista['titulo'] ?? 'Sin lista';
+
+}
 
   Color _estadoColor(String estado) {
     switch (estado.toLowerCase()) {
@@ -334,6 +360,16 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                     Expanded(
                       flex: 2,
                       child: Text(
+                        'Lista',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
                         'Etiqueta',
                         style: TextStyle(
                           color: textColor,
@@ -431,21 +467,23 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                           ),
                           Expanded(
                             flex: 2,
+                            child: Text(
+                              getTituloListaPorId(t['idLista']),
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
                             child: GestureDetector(
                               onTap: () {
                                 final current = estado.toLowerCase();
                                 String nuevo = 'pendiente';
-                                if (current == 'pendiente')
-                                  nuevo = 'en_progreso';
-                                else if (current == 'en_progreso')
-                                  nuevo = 'hecho';
+                                if (current == 'pendiente') nuevo = 'en_progreso';
+                                else if (current == 'en_progreso') nuevo = 'hecho';
                                 updateTask(t['_id'], nuevo);
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: _estadoColor(estado).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(8),
@@ -469,10 +507,7 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                             child: Row(
                               children: [
                                 IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: primaryColor,
-                                  ),
+                                  icon: Icon(Icons.delete, color: primaryColor),
                                   onPressed: () => deleteTask(t['_id']),
                                 ),
                               ],
@@ -480,13 +515,13 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
                           ),
                         ],
                       ),
+
                     );
                   },
                 ),
               ),
             ],
           ),
-
           // Formulario de agregar tarea
           if (showAddForm)
             Center(

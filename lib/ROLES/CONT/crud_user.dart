@@ -8,12 +8,12 @@ import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/super%20usario/home_page.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 
-class UsuariosScreen extends StatefulWidget {
+class UsuariosScreenCONT extends StatefulWidget {
   @override
   _UsuariosScreenState createState() => _UsuariosScreenState();
 }
 
-class _UsuariosScreenState extends State<UsuariosScreen> {
+class _UsuariosScreenState extends State<UsuariosScreenCONT> {
   // Colores empresariales
   final Color primaryColor = Colors.red[900]!;
   final Color secondaryColor = Colors.grey[800]!;
@@ -72,8 +72,11 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
 
+        // Filtrar solo usuarios con rol Cont
+        final usuariosCont = data.where((usuario) => usuario['rol'] == 'Cont_USER').toList();
+
         setState(() {
-          usuarios = data.reversed.toList();
+          usuarios = usuariosCont.reversed.toList();
           usuariosFiltrados = usuarios.take(5).toList();
           isLoading = false;
         });
@@ -201,11 +204,12 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     bool verContrasena = false;
     bool verConfirmacion = false;
 
-    String? rolSeleccionado;
+    // Solo permitir rol Cont
+    String rolSeleccionado = 'Cont_USER';
     String? ciudadSeleccionada;
     String? areaSeleccionada;
 
-final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER','A.R_USER','SWT_USER','Cont_USER','CX_USER','SIR_USER'];
+    // Listas de selección
     final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
     final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
@@ -229,7 +233,7 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Agregar Usuario',
+                          'Agregar Usuario Cont_USER',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -331,8 +335,10 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                           ),
                         ),
                         const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          value: rolSeleccionado,
+                        // Mostrar rol Cont como texto fijo (no editable)
+                        TextFormField(
+                          initialValue: 'Cont_USER',
+                          readOnly: true,
                           decoration: InputDecoration(
                             labelText: 'Rol',
                             labelStyle: TextStyle(color: darkGrey),
@@ -342,15 +348,8 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                               borderSide: BorderSide(color: primaryColor),
                             ),
                             filled: true,
-                            fillColor: backgroundColor,
+                            fillColor: lightGrey,
                           ),
-                          dropdownColor: backgroundColor,
-                          style: TextStyle(color: textColor),
-                          items: roles.map((rol) => DropdownMenuItem(
-                            value: rol,
-                            child: Text(rol),
-                          )).toList(),
-                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -417,7 +416,7 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                                 final confirmar = confirmarContrasenaController.text.trim();
 
                                 if ([nombre, apellido, correo, contrasena, confirmar].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
+                                    ciudadSeleccionada == null || areaSeleccionada == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Completa todos los campos', style: TextStyle(color: backgroundColor)),
@@ -462,13 +461,14 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                                     'area': areaSeleccionada,
                                   }),
                                 );
- if (!mounted) return; 
+
+                                if (!mounted) return; 
                                 if (response.statusCode == 200 || response.statusCode == 201) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Usuario agregado exitosamente', style: TextStyle(color: backgroundColor)),
+                                      content: Text('Usuario Cont_USER agregado exitosamente', style: TextStyle(color: backgroundColor)),
                                       backgroundColor: Colors.green[700],
                                     ),
                                   );
@@ -508,11 +508,12 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
     final correoController = TextEditingController(text: usuario['correo']);
     final contrasenaController = TextEditingController();
 
-    String? rolSeleccionado = usuario['rol'];
+    // Forzar rol Cont
+    String rolSeleccionado = 'Cont_USER';
     String? ciudadSeleccionada = usuario['ciudad'];
     String? areaSeleccionada = usuario['area'];
 
-final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER','A.R_USER','SWT_USER','Cont_USER','CX_USER','SIR_USER'];
+    // Listas de selección
     final ciudades = ['Quito', 'Calderón', 'Tumbaco', 'Pomasqui', 'Centro Historico'];
     final areas = ['Ventas', 'Marketing', 'TI', 'Recursos Humanos', 'Operaciones'];
 
@@ -538,7 +539,7 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Actualizar Usuario',
+                          'Actualizar Usuario Cont_USER',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -616,8 +617,10 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                           ),
                         ),
                         const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          value: rolSeleccionado,
+                        // Mostrar rol Cont como texto fijo (no editable)
+                        TextFormField(
+                          initialValue: 'Cont_USER',
+                          readOnly: true,
                           decoration: InputDecoration(
                             labelText: 'Rol',
                             labelStyle: TextStyle(color: darkGrey),
@@ -627,15 +630,8 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                               borderSide: BorderSide(color: primaryColor),
                             ),
                             filled: true,
-                            fillColor: backgroundColor,
+                            fillColor: lightGrey,
                           ),
-                          dropdownColor: backgroundColor,
-                          style: TextStyle(color: textColor),
-                          items: roles.map((rol) => DropdownMenuItem(
-                            value: rol,
-                            child: Text(rol),
-                          )).toList(),
-                          onChanged: (val) => setStateDialog(() => rolSeleccionado = val),
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
@@ -701,7 +697,7 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                                 final contrasena = contrasenaController.text.trim();
 
                                 if ([nombre, apellido, correo].any((e) => e.isEmpty) ||
-                                    rolSeleccionado == null || ciudadSeleccionada == null || areaSeleccionada == null) {
+                                    ciudadSeleccionada == null || areaSeleccionada == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Completa todos los campos', style: TextStyle(color: backgroundColor)),
@@ -740,13 +736,14 @@ final roles = ['SWT', 'Cont', 'Supervisor','A.R','CX','SIR','SD','Op','SD_USER',
                                   headers: {'Content-Type': 'application/json'},
                                   body: jsonEncode(body),
                                 );
-if (!mounted) return;
+
+                                if (!mounted) return;
                                 if (response.statusCode == 200) {
                                   Navigator.pop(context);
                                   await fetchUsuarios();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Usuario actualizado', style: TextStyle(color: backgroundColor)),
+                                      content: Text('Usuario Cont_USER actualizado', style: TextStyle(color: backgroundColor)),
                                       backgroundColor: Colors.green[700],
                                     ),
                                   );
@@ -785,8 +782,8 @@ if (!mounted) return;
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: backgroundColor,
-        title: Text('Eliminar usuario', style: TextStyle(color: primaryColor)),
-        content: Text('¿Estás seguro de eliminar este usuario?', style: TextStyle(color: textColor)),
+        title: Text('Eliminar usuario Cont_USER', style: TextStyle(color: primaryColor)),
+        content: Text('¿Estás seguro de eliminar este usuario Cont_USER?', style: TextStyle(color: textColor)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -815,14 +812,14 @@ if (!mounted) return;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Usuario eliminado', style: TextStyle(color: backgroundColor)),
+            content: Text('Usuario Cont_USER eliminado', style: TextStyle(color: backgroundColor)),
             backgroundColor: Colors.green[700],
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al eliminar usuario', style: TextStyle(color: backgroundColor)),
+            content: Text('Error al eliminar usuario Cont_USER', style: TextStyle(color: backgroundColor)),
             backgroundColor: primaryColor,
           ),
         );
@@ -856,18 +853,18 @@ if (!mounted) return;
           ),
         ),
         title: Text('$nombre $apellido', style: TextStyle(color: textColor)),
-        subtitle: Text(correo, style: TextStyle(color: darkGrey)),
+        subtitle: Text('$correo (Cont_USER)', style: TextStyle(color: darkGrey)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: Icon(Icons.edit, color: primaryColor),
-              tooltip: 'Actualizar usuario',
+              tooltip: 'Actualizar usuario Cont_USER',
               onPressed: () => _mostrarFormularioActualizarUsuario(usuario),
             ),
             IconButton(
               icon: Icon(Icons.delete, color: primaryColor),
-              tooltip: 'Eliminar usuario',
+              tooltip: 'Eliminar usuario Cont_USER',
               onPressed: () => _confirmarEliminacion(id),
             ),
           ],
@@ -882,7 +879,7 @@ if (!mounted) return;
       backgroundColor: lightGrey,
       appBar: AppBar(
         backgroundColor: primaryColor,
-        title: Text('Usuarios', style: TextStyle(color: backgroundColor)),
+        title: Text('Usuarios Cont_USER', style: TextStyle(color: backgroundColor)),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: backgroundColor), 
@@ -925,7 +922,7 @@ if (!mounted) return;
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          labelText: 'Buscar',
+                          labelText: 'Buscar usuarios Cont_USER',
                           labelStyle: TextStyle(color: textColor),
                           border: OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
@@ -941,7 +938,7 @@ if (!mounted) return;
                       child: usuariosFiltrados.isEmpty
                           ? Center(
                             child: Text(
-                              'No hay usuarios registrados que coincidan con la búsqueda.',
+                              'No hay usuarios Cont_USER registrados que coincidan con la búsqueda.',
                               style: TextStyle(color: textColor),
                             ),
                           )
@@ -958,7 +955,7 @@ if (!mounted) return;
         backgroundColor: primaryColor,
         onPressed: _mostrarFormularioAgregarUsuario,
         child: Icon(Icons.add, color: backgroundColor),
-        tooltip: 'Agregar nuevo usuario',
+        tooltip: 'Agregar nuevo usuario Cont_USER',
       ),
     );
   }

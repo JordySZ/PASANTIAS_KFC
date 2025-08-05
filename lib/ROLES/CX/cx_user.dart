@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:login_app/ROLES/CONT/projectCont.dart';
-import 'package:login_app/ROLES/SD/projectSd.dart';
-import 'package:login_app/ROLES/SIR/crud_user_sir.dart';
-import 'package:login_app/ROLES/SIR/projectSir.dart';
-
+import 'package:login_app/ROLES/CX/crud_user.dart';
+import 'package:login_app/ROLES/CX/projectsCX_USER.dart';
 import 'package:login_app/ROLES/custom.dart';
+import 'package:login_app/ROLES/custom_user.dart';
+import 'projectsCX.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
-
+import 'package:login_app/super%20usario/custom_drawer.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
 import 'dart:async';
 
 
- class  Project7 {
+class ProjectCX {
   final String name;
   final String status;
   final String startDate;
@@ -23,7 +22,7 @@ import 'dart:async';
   final double progress;
   final String? estado;
 
-  Project7({
+  ProjectCX({
     required this.name,
     this.status = 'Activo',
     this.startDate = 'N/A',
@@ -33,21 +32,21 @@ import 'dart:async';
   });
 }
 
-class DashboardSir extends StatefulWidget {
-  const DashboardSir({super.key});
+class DashboardCx_USERT extends StatefulWidget {
+  const DashboardCx_USERT({super.key});
 
   @override
-  State<DashboardSir> createState() => _DashboardPageState();
+  State<DashboardCx_USERT> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardSir> {
+class _DashboardPageState extends State<DashboardCx_USERT> {
   final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
   Timer? _completionCheckerTimer;
-  List<Project7> _completedProjectsToNotify = [];
+  List<ProjectCX> _completedProjectsToNotify = [];
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
-  List<Project7> _projects = [];
-  List<Project7> _projectsFiltered = [];
+  List<ProjectCX> _projects = [];
+  List<ProjectCX> _projectsFiltered = [];
   bool _isLoadingProjects = true;
   String? _projectsErrorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -170,7 +169,7 @@ class _DashboardPageState extends State<DashboardSir> {
           setState(() {
             final index = _projects.indexWhere((p) => p.name == project.name);
             if (index != -1) {
-              _projects[index] = Project7(
+              _projects[index] = ProjectCX(
                 name: project.name,
                 startDate: project.startDate,
                 endDate: project.endDate,
@@ -235,7 +234,7 @@ class _DashboardPageState extends State<DashboardSir> {
     try {
       final fetchedProcesses = await _apiService.getProcesses();
       setState(() {
-        _projects = fetchedProcesses.map((process) => Project7(
+        _projects = fetchedProcesses.map((process) => ProjectCX(
           name: process.nombre_proceso,
           startDate: process.startDate.toIso8601String(),
           endDate: process.endDate.toIso8601String(),
@@ -398,19 +397,14 @@ class _DashboardPageState extends State<DashboardSir> {
       case 0:
         setState(() => _selectedIndex = 0);
         break;
+     
+
+       
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreenSIR_USER()),
-        );
-        break;
-     
-
-      case 2:
-        Navigator.push(
-          context,
           MaterialPageRoute(
-            builder: (context) => ProjectsSIR(
+            builder: (context) => ProjectsTableCX_USERT(
               projects: _projectsFiltered,
               apiService: _apiService,
               refreshData: _fetchProjectsData,
@@ -489,7 +483,7 @@ class _DashboardPageState extends State<DashboardSir> {
           ),
         ],
       ),
-      drawer: Custom22(
+      drawer: Custom_user(
         selectedIndex: _selectedIndex,
         onItemTap: _onItemTapped,
       ),
@@ -499,9 +493,11 @@ class _DashboardPageState extends State<DashboardSir> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'SIR';
+      case 0: return 'CX';
       case 1: return 'Usuarios';
-      case 2: return 'Tablero de Proyectos';
+      case 2: return 'Gestión de Procesos';
+      case 3: return 'Tablero de Proyectos';
+      case 4: return 'Crear nuevo proceso';
       default: return 'Dashboard';
     }
   }
@@ -509,7 +505,7 @@ class _DashboardPageState extends State<DashboardSir> {
   Widget _buildPageContent(int index) {
     switch (index) {
       case 0: return _homeContent();
-      case 2: return ProjectsSIR(
+      case 1: return ProjectsTableCX_USERT(
         projects: _projectsFiltered,
         apiService: _apiService,
         refreshData: _fetchProjectsData,
@@ -517,9 +513,9 @@ class _DashboardPageState extends State<DashboardSir> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 1: return UsuariosScreenSIR_USER();
 
-
+      case 3:
+      case 4: return TableroScreen(processName: null);
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
     }
   }

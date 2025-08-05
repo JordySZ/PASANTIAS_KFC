@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:login_app/ROLES/CX/crud_user.dart';
 import 'package:login_app/ROLES/custom.dart';
 import 'projectsCX.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
@@ -397,7 +398,7 @@ class _DashboardPageState extends State<DashboardCx> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreen()),
+          MaterialPageRoute(builder: (context) => UsuariosScreenCX_USER()),
         );
         break;
 
@@ -515,7 +516,7 @@ class _DashboardPageState extends State<DashboardCx> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 2: return UsuariosScreen();
+      case 2: return UsuariosScreenCX_USER();
       case 3:
       case 4: return TableroScreen(processName: null);
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));

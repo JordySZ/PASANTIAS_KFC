@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:login_app/ROLES/CONT/projectCont.dart';
-import 'package:login_app/ROLES/SD/projectSd.dart';
-import 'package:login_app/ROLES/SIR/crud_user_sir.dart';
-import 'package:login_app/ROLES/SIR/projectSir.dart';
+import 'package:login_app/ROLES/A.R/crud_user.dart';
+import 'package:login_app/ROLES/A.R/customsoli.dart';
+import 'package:login_app/ROLES/A.R/projectArt_user.dart';
+import 'package:login_app/ROLES/A.R/solicitud.dart';
+import 'package:login_app/ROLES/custom_user.dart';
 
-import 'package:login_app/ROLES/custom.dart';
-import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
-
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
 import 'dart:async';
 
 
- class  Project7 {
+ class  ProjectAr {
   final String name;
   final String status;
   final String startDate;
@@ -23,7 +21,7 @@ import 'dart:async';
   final double progress;
   final String? estado;
 
-  Project7({
+  ProjectAr({
     required this.name,
     this.status = 'Activo',
     this.startDate = 'N/A',
@@ -33,24 +31,24 @@ import 'dart:async';
   });
 }
 
-class DashboardSir extends StatefulWidget {
-  const DashboardSir({super.key});
+class DashboardAr_user extends StatefulWidget {
+  const DashboardAr_user({super.key});
 
   @override
-  State<DashboardSir> createState() => _DashboardPageState();
+  State<DashboardAr_user> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardSir> {
+class _DashboardPageState extends State<DashboardAr_user> {
   final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
   Timer? _completionCheckerTimer;
-  List<Project7> _completedProjectsToNotify = [];
+  List<ProjectAr> _completedProjectsToNotify = [];
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
-  List<Project7> _projects = [];
-  List<Project7> _projectsFiltered = [];
+  List<ProjectAr> _projects = [];
+  List<ProjectAr> _projectsFiltered = [];
   bool _isLoadingProjects = true;
   String? _projectsErrorMessage;
-  final TextEditingController _searchController = TextEditingController();
+
 
   double completedPercent = 0.0;
   double inProgressPercent = 0.0;
@@ -170,7 +168,7 @@ class _DashboardPageState extends State<DashboardSir> {
           setState(() {
             final index = _projects.indexWhere((p) => p.name == project.name);
             if (index != -1) {
-              _projects[index] = Project7(
+              _projects[index] = ProjectAr(
                 name: project.name,
                 startDate: project.startDate,
                 endDate: project.endDate,
@@ -227,6 +225,8 @@ class _DashboardPageState extends State<DashboardSir> {
     });
   }
 
+  // Implementación de la función
+
   Future<void> _fetchProjectsData() async {
     setState(() {
       _isLoadingProjects = true;
@@ -235,7 +235,7 @@ class _DashboardPageState extends State<DashboardSir> {
     try {
       final fetchedProcesses = await _apiService.getProcesses();
       setState(() {
-        _projects = fetchedProcesses.map((process) => Project7(
+        _projects = fetchedProcesses.map((process) => ProjectAr(
           name: process.nombre_proceso,
           startDate: process.startDate.toIso8601String(),
           endDate: process.endDate.toIso8601String(),
@@ -285,100 +285,11 @@ class _DashboardPageState extends State<DashboardSir> {
     });
   }
 
-  void _filtrarProyectos(String query) {
-    setState(() {
-      _projectsFiltered = _projects
-          .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
 
-  void _confirmDeleteProcess(BuildContext context, String processName) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: backgroundColor,
-          title: Text('Confirmar Eliminación', style: TextStyle(color: textColor)),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar el proceso "$processName"? Esta acción es irreversible y eliminará todos los datos asociados a este proceso (listas y tarjetas).',
-            style: TextStyle(color: darkGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _deleteProcess(processName);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: backgroundColor,
-              ),
-              child: const Text('Eliminar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
-  Future<void> _deleteProcess(String processName) async {
-    setState(() {
-      _isLoadingProjects = true;
-    });
-    try {
-      final success = await _apiService.deleteProcess(processName);
-      if (success) {
-        await _fetchProjectsData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Proceso "$processName" eliminado exitosamente.', style: TextStyle(color: backgroundColor)),
-              backgroundColor: Colors.green[700],
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al eliminar el proceso "$processName".', style: TextStyle(color: backgroundColor)),
-              backgroundColor: primaryColor,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de conexión al eliminar el proceso: $e', style: TextStyle(color: backgroundColor)),
-            backgroundColor: primaryColor,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoadingProjects = false;
-      });
-    }
-  }
+  
 
-  String _formatStartDate(String dateString) {
-    try {
-      final DateTime dateTime = DateTime.parse(dateString);
-      return '${dateTime.day.toString().padLeft(2, '0')}/'
-             '${dateTime.month.toString().padLeft(2, '0')}/'
-             '${dateTime.year}';
-    } catch (e) {
-      return 'Fecha Inválida';
-    }
-  }
-
+  
   String _formatEndDate(String dateString) {
     try {
       final DateTime dateTime = DateTime.parse(dateString).toLocal();
@@ -401,16 +312,8 @@ class _DashboardPageState extends State<DashboardSir> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreenSIR_USER()),
-        );
-        break;
-     
-
-      case 2:
-        Navigator.push(
-          context,
           MaterialPageRoute(
-            builder: (context) => ProjectsSIR(
+            builder: (context) => ProjectsAr(
               projects: _projectsFiltered,
               apiService: _apiService,
               refreshData: _fetchProjectsData,
@@ -421,14 +324,8 @@ class _DashboardPageState extends State<DashboardSir> {
           ),
         );
         break;
-      case 4:
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TableroScreen(processName: null),
-          ),
-        );
-        break;
+     
+
       case 5:
         _showLogoutDialog();
         break;
@@ -489,7 +386,7 @@ class _DashboardPageState extends State<DashboardSir> {
           ),
         ],
       ),
-      drawer: Custom22(
+      drawer: Custom_user(
         selectedIndex: _selectedIndex,
         onItemTap: _onItemTapped,
       ),
@@ -499,9 +396,10 @@ class _DashboardPageState extends State<DashboardSir> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'SIR';
+      case 0: return 'A.R';
       case 1: return 'Usuarios';
       case 2: return 'Tablero de Proyectos';
+       case 3: return 'Solicitud';
       default: return 'Dashboard';
     }
   }
@@ -509,7 +407,7 @@ class _DashboardPageState extends State<DashboardSir> {
   Widget _buildPageContent(int index) {
     switch (index) {
       case 0: return _homeContent();
-      case 2: return ProjectsSIR(
+      case 2: return ProjectsAr(
         projects: _projectsFiltered,
         apiService: _apiService,
         refreshData: _fetchProjectsData,
@@ -517,7 +415,7 @@ class _DashboardPageState extends State<DashboardSir> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 1: return UsuariosScreenSIR_USER();
+      case 1: return UsuariosScreenAR();
 
 
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
@@ -1065,7 +963,7 @@ class LineChartPainter extends CustomPainter {
     final double leftPadding = 60;
     final double rightPadding = 20;
     final double topPadding = 20;
-    final double bottomPadding = 60;
+
     
     final int maxValue = [...started, ...closed].reduce((a, b) => max(a, b));
     final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;

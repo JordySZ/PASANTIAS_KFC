@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:login_app/ROLES/A.R/ar.dart';
+import 'package:login_app/ROLES/A.R/ar_user.dart';
 import 'package:login_app/ROLES/CONT/cont.dart';
 import 'package:login_app/ROLES/CX/cx.dart';
 import 'package:login_app/ROLES/SD/sd.dart';
+import 'package:login_app/ROLES/SD/sd_user.dart';
 import 'package:login_app/ROLES/SIR/sir.dart';
 import 'dart:convert';
 
@@ -104,7 +106,52 @@ class _LoginScreenState extends State<LoginScreen1> {
                 builder: (_) => DashboardSD(),
               ),
             );
+            } else if (userRole == 'SD_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardSD_user(),
+              ),
+            );
+
+                } else if (userRole == 'A.R_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr_user(),
+              ),
+            );
+
+               } else if (userRole == 'A.R_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr_user(),
+              ),
+            );
+               } else if (userRole == 'A.R_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr_user(),
+              ),
+            );
+               } else if (userRole == 'A.R_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr_user(),
+              ),
+            );
+               } else if (userRole == 'A.R_USER') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardAr_user(),
+              ),
+            );
           } else {
+
             print('Rol desconocido: $userRole. Redirigiendo a Dashboard por defecto.');
             Navigator.pushReplacement(
               context,

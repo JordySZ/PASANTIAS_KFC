@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:login_app/ROLES/CONT/projectCont.dart';
+import 'package:login_app/ROLES/SD/crud_user.dart';
 import 'package:login_app/ROLES/SD/projectSd.dart';
 
 import 'package:login_app/ROLES/custom.dart';
@@ -399,7 +400,7 @@ class _DashboardPageState extends State<DashboardSD> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreen()),
+          MaterialPageRoute(builder: (context) => UsuariosScreenSD_USER()),
         );
         break;
      
@@ -515,7 +516,7 @@ class _DashboardPageState extends State<DashboardSD> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 1: return UsuariosScreen();
+      case 1: return UsuariosScreenSD_USER();
 
 
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));

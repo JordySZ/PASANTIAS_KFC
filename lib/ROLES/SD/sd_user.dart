@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:login_app/ROLES/CONT/projectCont.dart';
-import 'package:login_app/ROLES/SD/projectSd.dart';
-import 'package:login_app/ROLES/SIR/crud_user_sir.dart';
-import 'package:login_app/ROLES/SIR/projectSir.dart';
+import 'package:login_app/ROLES/SD/crud_user.dart';
+import 'package:login_app/ROLES/SD/projectSd_user.dart';
+
 
 import 'package:login_app/ROLES/custom.dart';
+import 'package:login_app/ROLES/custom_user.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
 
@@ -15,7 +16,7 @@ import 'package:login_app/models/process.dart';
 import 'dart:async';
 
 
- class  Project7 {
+ class  Projectsd {
   final String name;
   final String status;
   final String startDate;
@@ -23,7 +24,7 @@ import 'dart:async';
   final double progress;
   final String? estado;
 
-  Project7({
+  Projectsd({
     required this.name,
     this.status = 'Activo',
     this.startDate = 'N/A',
@@ -33,21 +34,21 @@ import 'dart:async';
   });
 }
 
-class DashboardSir extends StatefulWidget {
-  const DashboardSir({super.key});
+class DashboardSD_user extends StatefulWidget {
+  const DashboardSD_user({super.key});
 
   @override
-  State<DashboardSir> createState() => _DashboardPageState();
+  State<DashboardSD_user> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardSir> {
+class _DashboardPageState extends State<DashboardSD_user> {
   final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
   Timer? _completionCheckerTimer;
-  List<Project7> _completedProjectsToNotify = [];
+  List<Projectsd> _completedProjectsToNotify = [];
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
-  List<Project7> _projects = [];
-  List<Project7> _projectsFiltered = [];
+  List<Projectsd> _projects = [];
+  List<Projectsd> _projectsFiltered = [];
   bool _isLoadingProjects = true;
   String? _projectsErrorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -170,7 +171,7 @@ class _DashboardPageState extends State<DashboardSir> {
           setState(() {
             final index = _projects.indexWhere((p) => p.name == project.name);
             if (index != -1) {
-              _projects[index] = Project7(
+              _projects[index] = Projectsd(
                 name: project.name,
                 startDate: project.startDate,
                 endDate: project.endDate,
@@ -235,7 +236,7 @@ class _DashboardPageState extends State<DashboardSir> {
     try {
       final fetchedProcesses = await _apiService.getProcesses();
       setState(() {
-        _projects = fetchedProcesses.map((process) => Project7(
+        _projects = fetchedProcesses.map((process) => Projectsd(
           name: process.nombre_proceso,
           startDate: process.startDate.toIso8601String(),
           endDate: process.endDate.toIso8601String(),
@@ -398,19 +399,13 @@ class _DashboardPageState extends State<DashboardSir> {
       case 0:
         setState(() => _selectedIndex = 0);
         break;
+ 
+
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreenSIR_USER()),
-        );
-        break;
-     
-
-      case 2:
-        Navigator.push(
-          context,
           MaterialPageRoute(
-            builder: (context) => ProjectsSIR(
+            builder: (context) => ProjectsSd(
               projects: _projectsFiltered,
               apiService: _apiService,
               refreshData: _fetchProjectsData,
@@ -421,7 +416,7 @@ class _DashboardPageState extends State<DashboardSir> {
           ),
         );
         break;
-      case 4:
+      case 3:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -489,7 +484,7 @@ class _DashboardPageState extends State<DashboardSir> {
           ),
         ],
       ),
-      drawer: Custom22(
+      drawer: Custom_user(
         selectedIndex: _selectedIndex,
         onItemTap: _onItemTapped,
       ),
@@ -499,9 +494,8 @@ class _DashboardPageState extends State<DashboardSir> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'SIR';
-      case 1: return 'Usuarios';
-      case 2: return 'Tablero de Proyectos';
+      case 0: return 'SD';
+      case 1: return 'Tablero de Proyectos';
       default: return 'Dashboard';
     }
   }
@@ -509,7 +503,7 @@ class _DashboardPageState extends State<DashboardSir> {
   Widget _buildPageContent(int index) {
     switch (index) {
       case 0: return _homeContent();
-      case 2: return ProjectsSIR(
+      case 1: return ProjectsSd(
         projects: _projectsFiltered,
         apiService: _apiService,
         refreshData: _fetchProjectsData,
@@ -517,7 +511,7 @@ class _DashboardPageState extends State<DashboardSir> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 1: return UsuariosScreenSIR_USER();
+
 
 
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));

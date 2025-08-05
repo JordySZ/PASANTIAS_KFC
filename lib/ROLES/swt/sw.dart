@@ -6,6 +6,7 @@ import 'package:login_app/ROLES/SD/projectSd.dart';
 import 'package:login_app/ROLES/SIR/projectSir.dart';
 
 import 'package:login_app/ROLES/custom.dart';
+import 'package:login_app/ROLES/swt/crud_user_swt.dart';
 import 'package:login_app/ROLES/swt/projectSwt.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
@@ -401,7 +402,7 @@ class _DashboardPageState extends State<DashboardSwt> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => UsuariosScreen()),
+          MaterialPageRoute(builder: (context) => UsuariosScreenSWT_USERT()),
         );
         break;
      
@@ -517,7 +518,7 @@ class _DashboardPageState extends State<DashboardSwt> {
         isLoading: _isLoadingProjects,
         errorMessage: _projectsErrorMessage,
       );
-      case 1: return UsuariosScreen();
+      case 1: return UsuariosScreenSWT_USERT();
 
 
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
