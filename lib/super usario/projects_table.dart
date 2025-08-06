@@ -1,9 +1,11 @@
+
+import 'dart:async'; // Añade esta importación al principio del archivo
+
 import 'package:flutter/material.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super usario/home_page.dart';
 import 'package:login_app/models/process.dart';
-
 class ProjectsTable extends StatefulWidget {
   final List<Project> projects;
   final ApiService apiService;
@@ -12,6 +14,7 @@ class ProjectsTable extends StatefulWidget {
   final ValueNotifier<String?> processStatusNotifier;
   final bool isLoading;
   final String? errorMessage;
+  
 
   const ProjectsTable({
     super.key,
@@ -48,34 +51,45 @@ class AppData {
 class _ProjectsTableState extends State<ProjectsTable> {
   final TextEditingController _searchController = TextEditingController();
   List<Project> _projectsFiltered = [];
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _projectsFiltered = widget.projects;
+    _updateFilteredProjects(widget.projects); // Inicializar con los proyectos actuales
     _searchController.addListener(_filtrarProyectos);
+
+
+  }
+
+  // Método para actualizar la lista filtrada
+  void _updateFilteredProjects(List<Project> newProjects) {
+    setState(() {
+      _projectsFiltered = newProjects
+          .where((p) => p.name.toLowerCase().contains(_searchController.text.toLowerCase()))
+          .toList();
+    });
   }
 
   @override
   void didUpdateWidget(ProjectsTable oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
     if (widget.projects != oldWidget.projects) {
-      _filtrarProyectos();
+      print("Proyectos actualizados, filtrando...");
+      _updateFilteredProjects(widget.projects); // Usar el nuevo método
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
   void _filtrarProyectos() {
-    setState(() {
-      _projectsFiltered = widget.projects
-          .where((p) => p.name.toLowerCase().contains(_searchController.text.toLowerCase()))
-          .toList();
-    });
+    _updateFilteredProjects(widget.projects); // Usar el mismo método para filtrar
   }
 
   @override
@@ -482,25 +496,37 @@ AppData.errorMessage = widget.errorMessage;
     );
   }
 
-  Future<void> _deleteProcess(BuildContext context, String processName) async {
-    try {
-      final success = await widget.apiService.deleteProcess(processName); // Corregido aquí
-      if (success) {
-        widget.refreshData();
+Future<void> _deleteProcess(BuildContext context, String processName) async {
+  try {
+    final success = await widget.apiService.deleteProcess(processName);
+    if (success) {
+      // Actualizar el estado local primero
+      setState(() {
+        _projectsFiltered.removeWhere((p) => p.name == processName);
+      });
+      
+      // Luego llamar al refreshData para sincronizar con el servidor
+      widget.refreshData();
+      
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Proceso "$processName" eliminado exitosamente.'),
             backgroundColor: Colors.green[700],
           ),
         );
-      } else {
+      }
+    } else {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al eliminar el proceso "$processName".'),
           ),
         );
       }
-    } catch (e) {
+    }
+  } catch (e) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error de conexión al eliminar el proceso: $e'),
@@ -508,6 +534,7 @@ AppData.errorMessage = widget.errorMessage;
       );
     }
   }
+}
 
   void _showEditProjectDialog(BuildContext context, Project project) {
     final Color backgroundColor = Colors.white;

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:login_app/ROLES/Operaciones/projects_table.dart';
 import 'package:login_app/ROLES/custom.dart';
+import 'package:login_app/ROLES/custom_user.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/crud_user.dart';
 import 'package:login_app/super%20usario/custom_drawer.dart';
@@ -394,15 +395,9 @@ class _DashboardPageState extends State<DashboardPage22> {
       case 0:
         setState(() => _selectedIndex = 0);
         break;
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => UsuariosScreen()),
-        );
-        break;
+  
       
-
-      case 2:
+      case 1:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -485,7 +480,7 @@ class _DashboardPageState extends State<DashboardPage22> {
           ),
         ],
       ),
-      drawer: Custom22(
+      drawer: Custom_user(
         selectedIndex: _selectedIndex,
         onItemTap: _onItemTapped,
       ),

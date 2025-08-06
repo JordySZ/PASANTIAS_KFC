@@ -1,11 +1,12 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:login_app/ROLES/A.R/ar.dart';
-
-
+import 'package:mime/mime.dart';
+import 'package:flutter/foundation.dart';
 class SolicitudAperturaScreen extends StatefulWidget {
   const SolicitudAperturaScreen({super.key});
 
@@ -19,13 +20,14 @@ class _SolicitudAperturaScreenState extends State<SolicitudAperturaScreen> {
   final _direccionController = TextEditingController();
   final _justificacionController = TextEditingController();
   bool _isLoading = false;
-
   List<PlatformFile> _archivosSeleccionados = [];
-
-
 
  Future<void> _enviarSolicitud() async {
   if (!_formKey.currentState!.validate()) return;
+  if (_archivosSeleccionados.isEmpty) {
+    _mostrarError('Por favor seleccione al menos un archivo');
+    return;
+  }
 
   setState(() => _isLoading = true);
 
@@ -33,62 +35,79 @@ class _SolicitudAperturaScreenState extends State<SolicitudAperturaScreen> {
   final url = Uri.parse('$baseUrl/solicitudes');
 
   try {
-    // Validar campos no vacíos antes de enviar
-    final nombreTienda = _nombreTiendaController.text.trim();
-    final direccion = _direccionController.text.trim();
-    final justificacion = _justificacionController.text.trim();
+    var request = http.MultipartRequest('POST', url);
 
-    if (nombreTienda.isEmpty || direccion.isEmpty || justificacion.isEmpty) {
-      throw Exception('Todos los campos son obligatorios');
+    // Campos de texto (DEBEN coincidir con el esquema Mongoose)
+    request.fields['nombreTienda'] = _nombreTiendaController.text.trim();
+request.fields['direccion'] = _direccionController.text.trim();
+request.fields['justificacion'] = _justificacionController.text.trim();
+    request.fields['estado'] = 'pendiente'; // Opcional (ya tiene default en el backend)
+
+    // Manejo de archivos (solo el primero, ya que el backend espera un solo archivo)
+    if (_archivosSeleccionados.isNotEmpty) {
+      final archivo = _archivosSeleccionados.first;
+      final mimeType = lookupMimeType(archivo.name) ?? 'application/octet-stream';
+
+      if (kIsWeb) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'archivo', // ¡DEBE coincidir con el campo en Mongoose!
+            archivo.bytes!,
+            filename: archivo.name,
+            contentType: MediaType.parse(mimeType),
+          ),
+        );
+      } else {
+        final file = File(archivo.path!);
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'archivo', // ¡DEBE coincidir con el campo en Mongoose!
+            file.path,
+            filename: archivo.name,
+            contentType: MediaType.parse(mimeType),
+          ),
+        );
+      }
     }
 
-    final solicitudData = {
-      'nombreTienda': nombreTienda,
-      'direccion': direccion,
-      'justificacion': justificacion,
-      'estado': 'pendiente',
-    };
+    // Debug: Imprime lo que se enviará
+    print('Campos enviados: ${request.fields}');
+    print('Archivos enviados: ${request.files.map((f) => f.filename).toList()}');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode(solicitudData),
-    );
+    final response = await request.send();
+    final responseData = await response.stream.bytesToString();
 
     if (response.statusCode == 201) {
-      // Mostrar mensaje y limpiar solo si fue exitoso
       _mostrarMensajeExito();
       _limpiarFormulario();
     } else {
-      _mostrarError('Error al enviar: ${response.statusCode} - ${response.body}');
+      _mostrarError('Error ${response.statusCode}: $responseData');
     }
   } catch (e) {
-    _mostrarError('Error: ${e.toString()}');
+    _mostrarError('Error de conexión: ${e.toString()}');
   } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 }
-
   Future<void> _seleccionarArchivos() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      );
+  try {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+      withData: true, // Asegura que los bytes estén disponibles en web
+    );
 
-      if (result != null) {
-        setState(() {
-          _archivosSeleccionados = result.files;
-        });
-        _mostrarMensaje('${result.files.length} archivo(s) seleccionado(s)');
-      }
-    } catch (e) {
-      _mostrarError('Error al seleccionar archivos: $e');
+    if (result != null) {
+      setState(() {
+        _archivosSeleccionados = result.files;
+      });
+      _mostrarMensaje('${result.files.length} archivo(s) seleccionado(s)');
     }
+  } catch (e) {
+    _mostrarError('Error al seleccionar archivos: $e');
   }
+}
 
   void _limpiarFormulario() {
     _nombreTiendaController.clear();
@@ -112,10 +131,11 @@ class _SolicitudAperturaScreenState extends State<SolicitudAperturaScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-        ),
-        duration: const Duration(seconds: 4),
+       
       ),
+      )
     );
+    
   }
 
   void _mostrarError(String mensaje) {
@@ -154,31 +174,31 @@ class _SolicitudAperturaScreenState extends State<SolicitudAperturaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     appBar: AppBar(
-  title: const Text('Nueva Solicitud de Apertura'),
-  centerTitle: true,
-  backgroundColor: Colors.blue[800],
-  leading: BackButton(
-    onPressed: () {
-      Navigator.maybePop(context).then((value) {
-        if (!value) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => DashboardAr()),
-          );
-        }
-      });
-    },
-    color: Colors.white, // Color opcional para el ícono
-  ),
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.refresh),
-      onPressed: _limpiarFormulario,
-      tooltip: 'Limpiar formulario',
-    ),
-  ],
-),
+      appBar: AppBar(
+        title: const Text('Nueva Solicitud de Apertura'),
+        centerTitle: true,
+        backgroundColor: Colors.blue[800],
+        leading: BackButton(
+          onPressed: () {
+            Navigator.maybePop(context).then((value) {
+              if (!value) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => DashboardAr()),
+                );
+              }
+            });
+          },
+          color: Colors.white,
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _limpiarFormulario,
+            tooltip: 'Limpiar formulario',
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:login_app/ROLES/A.R/cronogrma/cronograma.dart';
+import 'package:login_app/ROLES/A.R/panel/panel_graficas.dart';
+import 'package:login_app/ROLES/A.R/tabla/home_screen.dart';
+import 'package:login_app/ROLES/CONT/cronogrma/cronograma.dart';
+import 'package:login_app/ROLES/CONT/panel/panel_graficas.dart';
+import 'package:login_app/ROLES/CONT/tabla/home_screen.dart';
+import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:login_app/models/process.dart';
 import 'package:login_app/services/api_service.dart';
+import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:login_app/super%20usario/panel/panel_graficas.dart';
+import 'package:login_app/super%20usario/tabla/home_screen.dart';
+
+import 'dart:async';
 
 class DSIScreen extends StatefulWidget {
   final String? processName;
@@ -11,24 +23,51 @@ class DSIScreen extends StatefulWidget {
   const DSIScreen({super.key, this.processName});
 
   @override
-  State<DSIScreen> createState() => _DSIScreenState();
+  State<DSIScreen> createState() => _ARTScreenState();
 }
 
-class _DSIScreenState extends State<DSIScreen> {
+class _ARTScreenState extends State<DSIScreen> with WidgetsBindingObserver {
+  
+
   final ApiService _apiService = ApiService();
   List<ListaDatos> listas = [];
   List<List<Tarjeta>> tarjetasPorLista = [];
   Map<String, int> _listIdToIndexMap = {};
   Process? _currentProcessDetails;
-
+  bool _isScreenVisible = true;
+ String? _currentProcessCollectionName;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadData();
+  }
+
+  void _loadData() {
     _loadProcessDetails().then((_) {
       _loadListsFromBackend().then((_) {
         _loadCardsFromBackend();
       });
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Pantalla vuelve a estar visible
+      _isScreenVisible = true;
+      _loadData(); // Cargar datos inmediatamente al volver
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Pantalla ya no está visible
+      _isScreenVisible = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadProcessDetails() async {
@@ -37,6 +76,7 @@ class _DSIScreenState extends State<DSIScreen> {
       final Process? process = await _apiService.getProcessByName(widget.processName!);
       setState(() {
         _currentProcessDetails = process;
+         _currentProcessCollectionName = widget.processName;  // Añade esta línea
       });
     } catch (e) {
       print('Error al cargar detalles del proceso: $e');
@@ -84,7 +124,6 @@ class _DSIScreenState extends State<DSIScreen> {
     }
   }
 
-  // Método para actualizar el estado de una tarjeta
   Future<void> _actualizarEstadoTarjeta(Tarjeta tarjeta, EstadoTarjeta nuevoEstado) async {
     try {
       final tarjetaActualizada = tarjeta.copyWith(
@@ -98,7 +137,6 @@ class _DSIScreenState extends State<DSIScreen> {
       );
 
       if (success != null) {
-        // Actualizar la lista local
         setState(() {
           final listIndex = _listIdToIndexMap[tarjeta.idLista];
           if (listIndex != null) {
@@ -120,18 +158,12 @@ class _DSIScreenState extends State<DSIScreen> {
     }
   }
 
-  // Filtra las tarjetas para mostrar solo las de DSI
-  List<List<Tarjeta>> _filterDSICards() {
+  List<List<Tarjeta>> _filterdsiCards() {
     return listas.map((lista) {
       final index = _listIdToIndexMap[lista.id]!;
       return tarjetasPorLista[index].where((tarjeta) {
-        // Caso 1: Miembro es exactamente "DSI"
         if (tarjeta.miembro.trim().toLowerCase() == 'dsi') return true;
-        
-        // Caso 2: Miembro contiene "DSI" en cualquier parte
         if (tarjeta.miembro.toLowerCase().contains('dsi')) return true;
-        
-        // Caso 3: Miembro es una lista separada por comas que incluye DSI
         final miembros = tarjeta.miembro.split(',').map((m) => m.trim().toLowerCase()).toList();
         return miembros.contains('dsi');
       }).toList();
@@ -210,25 +242,80 @@ class _DSIScreenState extends State<DSIScreen> {
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  final filteredCards = _filterDSICards();
-  
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(
-        'Tareas DSI - ${widget.processName ?? ''}',
-        style: TextStyle(color: Colors.white), // Texto en color blanco
+  @override
+  Widget build(BuildContext context) {
+    final filteredCards = _filterdsiCards();
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Tareas dsi - ${widget.processName ?? ''}',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.black,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onSelected: (String value) {
+              if (_currentProcessCollectionName == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Por favor, crea o selecciona un proceso antes de navegar.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              if (value == 'cronograma') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlannerScreenCont(
+                     processName: _currentProcessCollectionName,
+                    ),
+                  ),
+                );
+              } else if (value == 'panel') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PanelTrelloCont(
+                     processName: _currentProcessCollectionName,
+                    ),
+                  ),
+                );
+              } else if (value == 'tablas') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => KanbanTaskManagerCont(
+                      processName: _currentProcessCollectionName,
+                    ),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'cronograma',
+                child: Text('Cronograma', style: TextStyle(color: Colors.black)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'tablas',
+                child: Text('Tablas', style: TextStyle(color: Colors.black)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'panel',
+                child: Text('Panel', style: TextStyle(color: Colors.black)),
+              ),
+            ],
+          ),
+        ],
       ),
-      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 255, 255, 255)),
-        onPressed: () => Navigator.pop(context),
-      ),
-    ),
-    body: _buildContent(filteredCards),
-  );
-}
+      body: _buildContent(filteredCards),
+    );
+  }
+
   Widget _buildContent(List<List<Tarjeta>> filteredCards) {
     if (listas.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -283,7 +370,7 @@ Widget build(BuildContext context) {
               itemCount: tarjetas.length,
               itemBuilder: (context, index) {
                 final tarjeta = tarjetas[index];
-                final isDSIOnly = tarjeta.miembro.trim().toLowerCase() == 'dsi';
+                final isdsiOnly = tarjeta.miembro.trim().toLowerCase() == 'dsi';
 
                 return GestureDetector(
                   onTap: () => _mostrarDetallesTarjeta(tarjeta),
@@ -314,7 +401,6 @@ Widget build(BuildContext context) {
                             children: [
                               Row(
                                 children: [
-                                  // Checkbox para marcar como completado
                                   GestureDetector(
                                     onTap: () {
                                       final nuevoEstado = tarjeta.estado == EstadoTarjeta.hecho
@@ -355,11 +441,11 @@ Widget build(BuildContext context) {
                                   ),
                                 ],
                               ),
-                              if (!isDSIOnly)
+                              if (!isdsiOnly)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4.0),
                                   child: Text(
-                                    'Compartido con: ${tarjeta.miembro.replaceAll('DSI', '').replaceAll(',,', ',').trim()}',
+                                    'Compartido con: ${tarjeta.miembro.replaceAll('Infraestructura', '').replaceAll(',,', ',').trim()}',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 12,

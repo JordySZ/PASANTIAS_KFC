@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:login_app/ROLES/Operaciones/cards2.dart';
+import 'package:login_app/ROLES/Operaciones/cronogrma/cronograma.dart';
+import 'package:login_app/ROLES/Operaciones/tabla/home_screen.dart';
 import 'package:login_app/super usario/tabla/home_screen.dart';
 import 'package:login_app/super usario/cards/cards.dart';
 import 'package:login_app/services/api_service.dart';
@@ -8,40 +11,41 @@ import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:intl/intl.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:flutter/foundation.dart';
 
-class PanelTrelloOpe extends StatefulWidget {
+class PanelTrelloOp extends StatefulWidget {
   final String? processName;
-  const PanelTrelloOpe({Key? key, this.processName}) : super(key: key);
+  const PanelTrelloOp({Key? key, this.processName}) : super(key: key);
 
   @override
   _PanelTrelloState createState() => _PanelTrelloState();
 }
 
-class _PanelTrelloState extends State<PanelTrelloOpe> {
+class _PanelTrelloState extends State<PanelTrelloOp> {
   List<GraficaConfiguracion> graficas = [];
   final ApiService _apiService = ApiService();
-  final _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
-  // Cache para memoización
-  final _memoizedChartData = <String, Map<String, int>>{};
-  final _memoizedCharts = <String, Widget>{};
+  // Cache optimizada
+  final _chartDataCache = <String, Map<String, int>>{};
+  final _chartWidgetCache = <String, Widget>{};
+  final int _maxCacheSize = 5;
   DateTime? _lastDataUpdate;
-  final _maxCacheSize = 20;
 
-  // Datos reales
+  // Datos
   List<ListaDatos> listas = [];
   List<Tarjeta> tarjetas = [];
   String? _currentProcessCollectionName;
 
-  // Iconos para filtros
-  final Map<String, IconData> filtroIconos = {
+  // Configuraciones visuales
+  final _filtroIconos = const {
     "lista": Icons.list_alt,
     "miembro": Icons.person,
     "vencimiento": Icons.calendar_today,
     "estado": Icons.flag,
   };
 
-  final List<Color> listaColores = [
+  final _listaColores = const [
     Colors.blue,
     Colors.purple,
     Colors.yellow,
@@ -52,94 +56,117 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     Colors.indigo,
   ];
 
-  // Colores fijos para leyendas específicas
-  final Map<String, Color> coloresFijosVencimiento = {
+  final _coloresFijosVencimiento = const {
     'Completado (a tiempo)': Colors.green,
     'Completado (con retraso)': Colors.red,
     'Completado (sin fecha)': Colors.lightGreen,
-    'Vencido': Colors.red[700]!,
+    'Vencido': Colors.red,
     'Por vencer (próximos 2 días)': Colors.orange,
     'Por vencer (más de 2 días)': Colors.blue,
     'Sin fecha': Colors.grey,
   };
 
   @override
-  void initState() {
-    super.initState();
-    _currentProcessCollectionName = widget.processName;
-    if (_currentProcessCollectionName != null) {
-      _loadListsAndCards(_currentProcessCollectionName!);
-      _loadGraficasFromBackend();
+void initState() {
+  super.initState();
+  _currentProcessCollectionName = widget.processName;
+  if (_currentProcessCollectionName != null) {
+    _loadInitialData();
+  }
+
+  Timer.periodic(const Duration(minutes: 5), (_) => _clearExpiredCache());
+  
+  // Timer de refresco sin animación
+  Timer.periodic(const Duration(seconds: 10), (_) {
+    if (_currentProcessCollectionName != null && mounted) {
+      _refreshData();
+    }
+  });
+}
+Future<void> _refreshData() async {
+  try {
+    await _loadListsAndCards(_currentProcessCollectionName!);
+    await _loadGraficasFromBackend();
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al refrescar datos: ${e.toString()}')),
+      );
+    }
+  }
+}
+  void _clearExpiredCache() {
+    if (_lastDataUpdate == null ||
+        DateTime.now().difference(_lastDataUpdate!) >
+            const Duration(minutes: 5)) {
+      _chartDataCache.clear();
+      _chartWidgetCache.clear();
     }
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _memoizedChartData.clear();
-    _memoizedCharts.clear();
-    super.dispose();
-  }
-
-  // Función para añadir al cache con límite de tamaño
-  void _addToCache(String key, Map<String, int> data) {
-    if (_memoizedChartData.length >= _maxCacheSize) {
-      _memoizedChartData.remove(_memoizedChartData.keys.first);
+  Future<void> _loadInitialData() async {
+    try {
+      await _loadListsAndCards(_currentProcessCollectionName!);
+      await _loadGraficasFromBackend();
+    } catch (e) {
+      _showErrorSnackbar('Error al cargar datos: ${e.toString()}');
     }
-    _memoizedChartData[key] = data;
   }
 
-  //Hasta aqui//
   Future<void> _loadListsAndCards(String processName) async {
     try {
       final loadedLists = await _apiService.getLists(processName);
       final loadedCards = await _apiService.getCards(processName);
-      setState(() {
-        listas = loadedLists;
-        tarjetas = loadedCards;
-        _lastDataUpdate = DateTime.now();
-        _memoizedChartData.clear();
-        _memoizedCharts.clear();
-      });
+
+      if (mounted) {
+        setState(() {
+          listas = loadedLists;
+          tarjetas = loadedCards;
+          _lastDataUpdate = DateTime.now();
+          _chartDataCache.clear();
+          _chartWidgetCache.clear();
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al cargar datos: $e')));
+      _showErrorSnackbar('Error al cargar listas y tarjetas: $e');
     }
   }
 
   Future<void> _loadGraficasFromBackend() async {
     if (_currentProcessCollectionName == null) return;
+
     try {
       final loadedGraficas = await _apiService.getGraficas(
         _currentProcessCollectionName!,
       );
-      setState(() {
-        graficas = loadedGraficas;
-      });
+
+      if (mounted) {
+        setState(() {
+          graficas = loadedGraficas;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al cargar gráficas: $e')));
+      _showErrorSnackbar('Error al cargar gráficas: $e');
     }
   }
 
   Future<void> _addGraficaToBackend(GraficaConfiguracion config) async {
     if (_currentProcessCollectionName == null) return;
+
     try {
       final created = await _apiService.createGrafica(
         _currentProcessCollectionName!,
         config,
       );
-      if (created != null) {
+
+      if (created != null && mounted) {
         setState(() {
           graficas.add(created);
+          _chartWidgetCache.clear();
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al crear gráfica: $e')));
+      _showErrorSnackbar('Error al crear gráfica: $e');
     }
   }
 
@@ -148,20 +175,21 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     GraficaConfiguracion config,
   ) async {
     if (_currentProcessCollectionName == null) return;
+
     try {
       final updated = await _apiService.updateGrafica(
         _currentProcessCollectionName!,
         config,
       );
-      if (updated != null) {
+
+      if (updated != null && mounted) {
         setState(() {
           graficas[index] = updated;
+          _chartWidgetCache.clear();
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al actualizar gráfica: $e')),
-      );
+      _showErrorSnackbar('Error al actualizar gráfica: $e');
     }
   }
 
@@ -169,163 +197,122 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     if (_currentProcessCollectionName == null) return;
     final grafica = graficas[index];
     if (grafica.id == null) return;
+
     try {
       final success = await _apiService.deleteGrafica(
         _currentProcessCollectionName!,
         grafica.id!,
       );
-      if (success) {
+
+      if (success && mounted) {
         setState(() {
           graficas.removeAt(index);
+          _chartWidgetCache.clear();
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al eliminar gráfica: $e')));
+      _showErrorSnackbar('Error al eliminar gráfica: $e');
     }
   }
 
-  Map<String, int> _getBarData(String filtro) {
-    final cacheKey = '$filtro-${_lastDataUpdate?.millisecondsSinceEpoch ?? 0}';
+  void _showErrorSnackbar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
 
-    if (_memoizedChartData.containsKey(cacheKey)) {
-      return _memoizedChartData[cacheKey]!;
+  Future<Map<String, int>> _getChartData(String tipo, String filtro) async {
+    final cacheKey =
+        '$tipo-$filtro-${_lastDataUpdate?.millisecondsSinceEpoch ?? 0}';
+
+    if (_chartDataCache.containsKey(cacheKey)) {
+      return _chartDataCache[cacheKey]!;
     }
 
     try {
-      final Map<String, int> data = {};
-      final hoy = DateTime.now();
+      final data = await compute(_calculateChartData, {
+        'filtro': filtro,
+        'tarjetas': tarjetas,
+        'listas': listas,
+      });
 
-      if (filtro == "vencimiento") {
-        // Inicialización segura de categorías
-        const categoriasVencimiento = [
-          'Completado (a tiempo)',
-          'Completado (con retraso)',
-          'Completado (sin fecha)',
-          'Vencido',
-          'Por vencer (próximos 2 días)',
-          'Por vencer (más de 2 días)',
-          'Sin fecha',
-        ];
-
-        // Inicializar todas las categorías posibles
-        for (var categoria in categoriasVencimiento) {
-          data[categoria] = 0;
-        }
-
-        for (var tarjeta in tarjetas) {
-          final tiempoInfo = tarjeta.tiempoRestanteCalculado ?? {};
-          final textoEstado = tiempoInfo['text']?.toString() ?? 'Desconocido';
-
-          if (textoEstado.contains('Completado (con') &&
-              textoEstado.contains('restantes')) {
-            data['Completado (a tiempo)'] =
-                (data['Completado (a tiempo)'] ?? 0) + 1;
-          } else if (textoEstado.contains('Completado (con') &&
-              textoEstado.contains('retraso')) {
-            data['Completado (con retraso)'] =
-                (data['Completado (con retraso)'] ?? 0) + 1;
-          } else if (textoEstado == 'Completado (sin fecha de completado)') {
-            data['Completado (sin fecha)'] =
-                (data['Completado (sin fecha)'] ?? 0) + 1;
-          } else if (textoEstado.contains('Vencido')) {
-            data['Vencido'] = (data['Vencido'] ?? 0) + 1;
-          } else if (textoEstado.contains('Faltan') &&
-              tarjeta.fechaVencimiento != null) {
-            final diff = tarjeta.fechaVencimiento!.difference(hoy);
-            if (diff.inDays <= 2) {
-              data['Por vencer (próximos 2 días)'] =
-                  (data['Por vencer (próximos 2 días)'] ?? 0) + 1;
-            } else {
-              data['Por vencer (más de 2 días)'] =
-                  (data['Por vencer (más de 2 días)'] ?? 0) + 1;
-            }
-          } else if (tarjeta.fechaVencimiento == null) {
-            data['Sin fecha'] = (data['Sin fecha'] ?? 0) + 1;
-          }
-        }
-
-        // Eliminar categorías vacías
-        data.removeWhere(
-          (key, value) => value == 0 || !categoriasVencimiento.contains(key),
-        );
-      } else {
-        switch (filtro) {
-          case "lista":
-            for (var lista in listas) {
-              if (lista.id != null && lista.titulo.isNotEmpty) {
-                final count =
-                    tarjetas.where((t) => t.idLista == lista.id).length;
-                if (count > 0) {
-                  data[lista.titulo] = count;
-                }
-              }
-            }
-            break;
-          case "miembro":
-            for (var tarjeta in tarjetas) {
-              final miembro =
-                  tarjeta.miembro.isNotEmpty ? tarjeta.miembro : "Sin asignar";
-              data[miembro] = (data[miembro] ?? 0) + 1;
-            }
-            // Eliminar categorías vacías (excepto "Sin asignar")
-            data.removeWhere(
-              (key, value) => value == 0 && key != "Sin asignar",
-            );
-            break;
-          case "estado":
-            final estadosValidos =
-                EstadoTarjeta.values.map((e) => e.name).toList();
-            for (var tarjeta in tarjetas) {
-              final estado = tarjeta.estado?.name ?? "Desconocido";
-              if (estadosValidos.contains(estado)) {
-                data[estado] = (data[estado] ?? 0) + 1;
-              }
-            }
-            break;
-          default:
-            throw ArgumentError('Filtro no válido: $filtro');
+      if (data.isNotEmpty) {
+        _chartDataCache[cacheKey] = data;
+        if (_chartDataCache.length > _maxCacheSize) {
+          _chartDataCache.remove(_chartDataCache.keys.first);
         }
       }
 
-      // Validación final - asegurar que hay al menos un valor positivo
-      if (data.values.every((v) => v == 0)) {
-        return {};
-      }
-
-      _addToCache(cacheKey, data);
       return data;
     } catch (e) {
-      debugPrint('Error en _getBarData: $e');
       return {};
     }
   }
 
-  Map<String, int> _getPieData(String filtro) {
-    // Clave única para el cache (incluye filtro y timestamp de última actualización)
-    final cacheKey =
-        'pie-$filtro-${_lastDataUpdate?.millisecondsSinceEpoch ?? 0}';
+  static Map<String, int> _calculateChartData(Map<String, dynamic> params) {
+    final String filtro = params['filtro'];
+    final List<Tarjeta> tarjetas = params['tarjetas'];
+    final List<ListaDatos> listas = params['listas'];
+    final hoy = DateTime.now();
+    final Map<String, int> data = {};
 
-    // Verificar si ya tenemos estos datos en caché
-    if (_memoizedChartData.containsKey(cacheKey)) {
-      return _memoizedChartData[cacheKey]!;
-    }
+    if (filtro == "vencimiento") {
+      const categoriasVencimiento = [
+        'Completado (a tiempo)',
+        'Completado (con retraso)',
+        'Completado (sin fecha)',
+        'Vencido',
+        'Por vencer (próximos 2 días)',
+        'Por vencer (más de 2 días)',
+        'Sin fecha',
+      ];
 
-    try {
-      final Map<String, int> data = {};
-      final hoy = DateTime.now();
-
-      // Validación inicial
-      if (listas.isEmpty && tarjetas.isEmpty) {
-        _addToCache(cacheKey, {}); // Almacenar resultado vacío en caché
-        return {};
+      for (var categoria in categoriasVencimiento) {
+        data[categoria] = 0;
       }
 
+      for (var tarjeta in tarjetas) {
+        final tiempoInfo = tarjeta.tiempoRestanteCalculado;
+        final textoEstado = tiempoInfo['text']?.toString() ?? 'Desconocido';
+
+        if (textoEstado.contains('Completado (con') &&
+            textoEstado.contains('restantes')) {
+          data['Completado (a tiempo)'] =
+              (data['Completado (a tiempo)'] ?? 0) + 1;
+        } else if (textoEstado.contains('Completado (con') &&
+            textoEstado.contains('retraso')) {
+          data['Completado (con retraso)'] =
+              (data['Completado (con retraso)'] ?? 0) + 1;
+        } else if (textoEstado == 'Completado (sin fecha de completado)') {
+          data['Completado (sin fecha)'] =
+              (data['Completado (sin fecha)'] ?? 0) + 1;
+        } else if (textoEstado.contains('Vencido')) {
+          data['Vencido'] = (data['Vencido'] ?? 0) + 1;
+        } else if (textoEstado.contains('Faltan') &&
+            tarjeta.fechaVencimiento != null) {
+          final diff = tarjeta.fechaVencimiento!.difference(hoy);
+          if (diff.inDays <= 2) {
+            data['Por vencer (próximos 2 días)'] =
+                (data['Por vencer (próximos 2 días)'] ?? 0) + 1;
+          } else {
+            data['Por vencer (más de 2 días)'] =
+                (data['Por vencer (más de 2 días)'] ?? 0) + 1;
+          }
+        } else if (tarjeta.fechaVencimiento == null) {
+          data['Sin fecha'] = (data['Sin fecha'] ?? 0) + 1;
+        }
+      }
+
+      data.removeWhere(
+        (key, value) => value == 0 || !categoriasVencimiento.contains(key),
+      );
+    } else {
       switch (filtro) {
         case "lista":
           for (var lista in listas) {
-            if (lista.id != null && lista.titulo.isNotEmpty) {
+            if (lista.titulo.isNotEmpty) {
               final count = tarjetas.where((t) => t.idLista == lista.id).length;
               if (count > 0) {
                 data[lista.titulo] = count;
@@ -333,196 +320,118 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
             }
           }
           break;
-
         case "miembro":
           for (var tarjeta in tarjetas) {
             final miembro =
                 tarjeta.miembro.isNotEmpty ? tarjeta.miembro : "Sin asignar";
             data[miembro] = (data[miembro] ?? 0) + 1;
           }
-          // Eliminar categorías vacías (excepto "Sin asignar")
           data.removeWhere((key, value) => value == 0 && key != "Sin asignar");
           break;
-
         case "estado":
           final estadosValidos =
               EstadoTarjeta.values.map((e) => e.name).toList();
           for (var tarjeta in tarjetas) {
-            final estado = tarjeta.estado?.name ?? "Desconocido";
+            final estado = tarjeta.estado.name;
             if (estadosValidos.contains(estado)) {
               data[estado] = (data[estado] ?? 0) + 1;
             }
           }
           break;
-
-        case "vencimiento":
-          // Inicialización segura de categorías
-          const categoriasVencimiento = [
-            'Completado (a tiempo)',
-            'Completado (con retraso)',
-            'Completado (sin fecha)',
-            'Vencido',
-            'Por vencer (próximos 2 días)',
-            'Por vencer (más de 2 días)',
-            'Sin fecha',
-          ];
-
-          for (var categoria in categoriasVencimiento) {
-            data[categoria] = 0;
-          }
-
-          for (var tarjeta in tarjetas) {
-            final tiempoInfo = tarjeta.tiempoRestanteCalculado ?? {};
-            final textoEstado = tiempoInfo['text']?.toString() ?? 'Desconocido';
-
-            if (textoEstado.contains('Completado (con') &&
-                textoEstado.contains('restantes')) {
-              data['Completado (a tiempo)'] =
-                  (data['Completado (a tiempo)'] ?? 0) + 1;
-            } else if (textoEstado.contains('Completado (con') &&
-                textoEstado.contains('retraso')) {
-              data['Completado (con retraso)'] =
-                  (data['Completado (con retraso)'] ?? 0) + 1;
-            } else if (textoEstado == 'Completado (sin fecha de completado)') {
-              data['Completado (sin fecha)'] =
-                  (data['Completado (sin fecha)'] ?? 0) + 1;
-            } else if (textoEstado.contains('Vencido')) {
-              data['Vencido'] = (data['Vencido'] ?? 0) + 1;
-            } else if (textoEstado.contains('Faltan') &&
-                tarjeta.fechaVencimiento != null) {
-              final diff = tarjeta.fechaVencimiento!.difference(hoy);
-              if (diff.inDays <= 2) {
-                data['Por vencer (próximos 2 días)'] =
-                    (data['Por vencer (próximos 2 días)'] ?? 0) + 1;
-              } else {
-                data['Por vencer (más de 2 días)'] =
-                    (data['Por vencer (más de 2 días)'] ?? 0) + 1;
-              }
-            } else if (tarjeta.fechaVencimiento == null) {
-              data['Sin fecha'] = (data['Sin fecha'] ?? 0) + 1;
-            }
-          }
-
-          // Eliminar categorías vacías
-          data.removeWhere(
-            (key, value) => value == 0 || !categoriasVencimiento.contains(key),
-          );
-          break;
-
         default:
-          throw ArgumentError('Filtro no válido: $filtro');
+          return {};
       }
-
-      // Validación final - asegurar que hay al menos un valor positivo
-      if (data.values.every((v) => v == 0)) {
-        _addToCache(cacheKey, {}); // Almacenar resultado vacío en caché
-        return {};
-      }
-
-      _addToCache(cacheKey, data); // Almacenar en caché antes de retornar
-      return data;
-    } catch (e) {
-      debugPrint('Error en _getPieData: $e');
-      _addToCache(
-        cacheKey,
-        {},
-      ); // Almacenar fallo en caché para evitar reintentos
-      return {};
     }
+
+    return data;
   }
 
   String _tituloGrafica(GraficaConfiguracion config) {
-    String filtroNombre = "";
-    switch (config.filtro) {
-      case "lista":
-        filtroNombre = "Lista";
-        break;
-      case "miembro":
-        filtroNombre = "Miembro";
-        break;
-      case "vencimiento":
-        filtroNombre = "Fecha de vencimiento";
-        break;
-      default:
-        filtroNombre = config.filtro;
-    }
+    final filtroNombre =
+        {
+          "lista": "Lista",
+          "miembro": "Miembro",
+          "vencimiento": "Fecha de vencimiento",
+          "estado": "Estado",
+        }[config.filtro] ??
+        config.filtro;
 
     if (config.tipoGrafica == "lineas") {
       return "Progreso - $filtroNombre (${config.periodo})";
     }
 
-    String tipoNombre = "";
-    switch (config.tipoGrafica) {
-      case "barras":
-        tipoNombre = "Tarjetas por";
-        break;
-      case "circular":
-        tipoNombre = "Distribución por";
-        break;
-      default:
-        tipoNombre = "";
-    }
+    final tipoNombre =
+        {"barras": "Tarjetas por", "circular": "Distribución por"}[config
+            .tipoGrafica] ??
+        "";
 
     return "$tipoNombre $filtroNombre";
   }
 
-  Widget _construirGrafica(GraficaConfiguracion config) {
+  Future<Widget> _construirGrafica(GraficaConfiguracion config) async {
     final cacheKey =
         '${config.tipoGrafica}-${config.filtro}-${_lastDataUpdate?.millisecondsSinceEpoch ?? 0}';
 
-    if (_memoizedCharts.containsKey(cacheKey)) {
-      return _memoizedCharts[cacheKey]!;
+    if (_chartWidgetCache.containsKey(cacheKey)) {
+      return _chartWidgetCache[cacheKey]!;
     }
 
+    final datos = await _getChartData(config.tipoGrafica, config.filtro);
     Widget chart;
+
     switch (config.tipoGrafica) {
       case "barras":
-        chart = _buildBarChart(config);
+        chart = _buildBarChart(config, datos);
         break;
       case "circular":
-        chart = _buildPieChart(config);
+        chart = _buildPieChart(config, datos);
         break;
       case "lineas":
-        chart = _buildLineChart(config);
+        chart = _buildLineChart(config, datos);
         break;
       default:
         chart = const SizedBox();
     }
 
-    if (_memoizedCharts.length >= _maxCacheSize) {
-      _memoizedCharts.remove(_memoizedCharts.keys.first);
+    if (_chartWidgetCache.length >= _maxCacheSize) {
+      _chartWidgetCache.remove(_chartWidgetCache.keys.first);
     }
-    _memoizedCharts[cacheKey] = chart;
+    _chartWidgetCache[cacheKey] = chart;
     return chart;
   }
 
-  Widget _buildBarChart(GraficaConfiguracion config) {
-    final datos = _getBarData(config.filtro);
-
-    // Validación de datos vacíos
-    if (datos.isEmpty || datos.values.every((v) => v == 0)) {
-      return _buildEmptyState('No hay datos disponibles');
-    }
+  Widget _buildBarChart(GraficaConfiguracion config, Map<String, int> datos) {
+    if (datos.isEmpty) return _buildEmptyState('No hay datos disponibles');
 
     final labels = datos.keys.toList();
     final valores = datos.values.toList();
 
-    final double maxY =
-        valores.isNotEmpty
-            ? (valores.reduce((a, b) => a > b ? a : b) + 1).toDouble()
-            : 5.0;
+    final effectiveColors = List.generate(
+      labels.length,
+      (i) =>
+          config.filtro == "vencimiento"
+              ? _coloresFijosVencimiento[labels[i]] ?? Colors.grey
+              : _listaColores[i % _listaColores.length],
+    );
+
+    final maxY = valores.reduce((a, b) => a > b ? a : b).toDouble() + 1;
 
     return Card(
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: Colors.grey[850],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
-        height: 280,
+        height: 300,
         child: Column(
           children: [
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.only(
+                  left: 12,
+                  right: 12,
+                  top: 12,
+                  bottom: 4,
+                ),
                 child: BarChart(
                   BarChartData(
                     maxY: maxY,
@@ -533,12 +442,8 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                         barRods: [
                           BarChartRodData(
                             toY: valores[i].toDouble(),
-                            color:
-                                config.filtro == "vencimiento"
-                                    ? coloresFijosVencimiento[labels[i]] ??
-                                        Colors.grey
-                                    : listaColores[i % listaColores.length],
-                            width: 14, // Ancho aumentado
+                            color: effectiveColors[i],
+                            width: 14,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ],
@@ -571,76 +476,43 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                             const TextStyle(color: Colors.white),
                           );
                         },
-                        fitInsideVertically: true,
-                        fitInsideHorizontally: true,
                       ),
                     ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine:
-                          (value) => FlLine(
-                            color: Colors.white.withOpacity(0.1),
-                            strokeWidth: 1,
-                          ),
-                    ),
-                    titlesData: FlTitlesData(
+                    gridData: FlGridData(show: false),
+                    titlesData: const FlTitlesData(
                       bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.toInt();
-                            return (index >= 0 && index < labels.length)
-                                ? SideTitleWidget(
-                                  meta: meta,
-                                  child: Text(
-                                    labels[index],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                )
-                                : const SizedBox.shrink();
-                          },
-                        ),
+                        sideTitles: SideTitles(showTitles: false),
                       ),
                       leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: maxY > 10 ? 2 : 1,
-                          reservedSize: 30,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              value.toInt().toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                              ),
-                            );
-                          },
-                        ),
+                        sideTitles: SideTitles(showTitles: false),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
+            // Leyenda SIN scroll
             Container(
-              height: 50,
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              height: 60,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
                   children:
                       labels.asMap().entries.map((entry) {
                         final index = entry.key;
                         final label = entry.value;
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -648,21 +520,19 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                                 width: 10,
                                 height: 10,
                                 decoration: BoxDecoration(
-                                  color:
-                                      config.filtro == "vencimiento"
-                                          ? coloresFijosVencimiento[label] ??
-                                              Colors.grey
-                                          : listaColores[index %
-                                              listaColores.length],
+                                  color: effectiveColors[index],
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               ConstrainedBox(
-                                constraints: BoxConstraints(maxWidth: 120),
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.25,
+                                ),
                                 child: Text(
                                   label,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
                                   ),
@@ -683,35 +553,23 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     );
   }
 
-  Widget _buildPieChart(GraficaConfiguracion config) {
-    final datos = _getPieData(config.filtro);
-
-    // Verificación crítica para datos vacíos o inválidos
-    if (datos.isEmpty || datos.values.every((v) => v == 0)) {
-      return SizedBox(
-        height: 280,
-        child: Center(
-          child: Text(
-            'No hay datos disponibles',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-        ),
-      );
-    }
+  Widget _buildPieChart(GraficaConfiguracion config, Map<String, int> datos) {
+    if (datos.isEmpty) return _buildEmptyState('No hay datos disponibles');
 
     final labels = datos.keys.toList();
     final valores = datos.values.toList();
     final total = valores.reduce((a, b) => a + b);
 
     return Card(
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: Colors.grey[850],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
         height: 280,
-        child: Column(
+        child: Row(
           children: [
             Expanded(
+              flex: 2,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Center(
@@ -720,7 +578,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                     child: PieChart(
                       PieChartData(
                         sectionsSpace: 0,
-                        centerSpaceRadius: 0, // Centro más pequeño pero visible
+                        centerSpaceRadius: 0,
                         pieTouchData: PieTouchData(
                           enabled: true,
                           touchCallback: (
@@ -747,16 +605,14 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           final percentage = (valores[i] / total * 100).round();
                           return PieChartSectionData(
                             value: valores[i].toDouble(),
-                            color: listaColores[i % listaColores.length],
-                            radius:
-                                95, // Radio más grande para mejor visualización
+                            color: _listaColores[i % _listaColores.length],
+                            radius: 105,
                             title: valores[i] > 0 ? '${percentage}%' : '',
                             titleStyle: TextStyle(
                               fontSize: valores[i] > total * 0.1 ? 14 : 10,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                            showTitle: valores[i] > 0,
                           );
                         }),
                       ),
@@ -765,47 +621,48 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                 ),
               ),
             ),
-            Container(
-              height: 60,
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(labels.length, (i) {
-                    return Tooltip(
-                      message: labels[i],
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: listaColores[i % listaColores.length],
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 6),
-                            ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: 150),
-                              child: Text(
-                                '${labels[i]} (${valores[i]})',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: List.generate(labels.length, (i) {
+                      return Tooltip(
+                        message: labels[i],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color:
+                                      _listaColores[i % _listaColores.length],
+                                  shape: BoxShape.circle,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  '${labels[i]} (${valores[i]})',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
               ),
             ),
@@ -815,27 +672,19 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     );
   }
 
-  Widget _buildLineChart(GraficaConfiguracion config) {
-    final datos = _getBarData(config.filtro);
-
-    // Validación de datos vacíos
-    if (datos.isEmpty || datos.values.every((v) => v == 0)) {
-      return _buildEmptyState('No hay datos históricos');
-    }
+  Widget _buildLineChart(GraficaConfiguracion config, Map<String, int> datos) {
+    if (datos.isEmpty) return _buildEmptyState('No hay datos históricos');
 
     final labels = datos.keys.toList();
     final valores = datos.values.toList();
 
-    // Procesamiento mejorado de fechas
     final fechasFormateadas =
         labels.map((fechaStr) {
           try {
             final fecha = DateTime.parse(fechaStr);
             return DateFormat('dd/MM').format(fecha);
           } catch (_) {
-            return fechaStr.length > 7
-                ? '${fechaStr.substring(0, 7)}...'
-                : fechaStr;
+            return fechaStr;
           }
         }).toList();
 
@@ -846,298 +695,210 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
     final maxY = valores.reduce((a, b) => a > b ? a : b).toDouble() * 1.1;
 
     return Card(
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: Colors.grey[850],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
         height: 280,
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: LineChart(
-                  LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      horizontalInterval: maxY > 10 ? 2 : 1,
-                      getDrawingHorizontalLine:
-                          (value) => FlLine(
-                            color: Colors.white.withOpacity(0.1),
-                            strokeWidth: 1,
-                          ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: LineChart(
+            LineChartData(
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: maxY > 10 ? 2 : 1,
+                getDrawingHorizontalLine:
+                    (value) => FlLine(
+                      color: Colors.white.withOpacity(0.1),
+                      strokeWidth: 1,
                     ),
-                    lineTouchData: LineTouchData(
-                      enabled: true,
-                      touchCallback: (
-                        FlTouchEvent event,
-                        LineTouchResponse? response,
-                      ) {
-                        if (event is FlTapUpEvent &&
-                            response != null &&
-                            response.lineBarSpots != null) {
-                          final spot = response.lineBarSpots!.first;
-                          final index = spot.x.toInt();
-                          if (index >= 0 &&
-                              index < labels.length &&
-                              valores[index] > 0) {
-                            _mostrarTarjetasDialog(
-                              labels[index],
-                              config.filtro,
-                            );
-                          }
-                        }
-                      },
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                          return touchedSpots.map((spot) {
-                            final index = spot.x.toInt();
-                            return LineTooltipItem(
-                              '${fechasFormateadas[index]}\n${spot.y.toInt()} tarjetas',
-                              const TextStyle(color: Colors.white),
-                            );
-                          }).toList();
-                        },
-                      ),
-                    ),
-                    titlesData: FlTitlesData(
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: 1,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.toInt();
-                            return (index >= 0 && index < labels.length)
-                                ? SideTitleWidget(
-                                  meta: meta,
-                                  child: Text(
-                                    labels[index],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                )
-                                : const SizedBox.shrink();
-                          },
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: maxY > 10 ? 2 : 1,
-                          reservedSize: 30,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              value.toInt().toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    minY: 0,
-                    maxY: maxY,
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spots,
-                        isCurved: true,
-                        color: Colors.greenAccent,
-                        barWidth: 3,
-                        dotData: FlDotData(
-                          show: true,
-                          getDotPainter:
-                              (spot, percent, barData, index) =>
-                                  FlDotCirclePainter(
-                                    radius: 4,
-                                    color: Colors.greenAccent,
-                                    strokeWidth: 2,
-                                    strokeColor: Colors.white,
-                                  ),
-                        ),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.greenAccent.withOpacity(0.3),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              lineTouchData: LineTouchData(
+                enabled: true,
+                touchCallback: (
+                  FlTouchEvent event,
+                  LineTouchResponse? response,
+                ) {
+                  if (event is FlTapUpEvent &&
+                      response != null &&
+                      response.lineBarSpots != null) {
+                    final spot = response.lineBarSpots!.first;
+                    final index = spot.x.toInt();
+                    if (index >= 0 &&
+                        index < labels.length &&
+                        valores[index] > 0) {
+                      _mostrarTarjetasDialog(labels[index], config.filtro);
+                    }
+                  }
+                },
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      final index = spot.x.toInt();
+                      return LineTooltipItem(
+                        '${fechasFormateadas[index]}\n${spot.y.toInt()} tarjetas',
+                        const TextStyle(color: Colors.white),
+                      );
+                    }).toList();
+                  },
                 ),
               ),
+              titlesData: FlTitlesData(
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    reservedSize: 28, // Más espacio para etiquetas
+                    getTitlesWidget: (value, meta) {
+                      final index = value.toInt();
+                      if (index >= 0 && index < fechasFormateadas.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            top: 10.0,
+                          ), // Más espacio arriba
+                          child: Text(
+                            fechasFormateadas[index],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: maxY > 10 ? 2 : 1,
+                    reservedSize: 30,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              minY: 0,
+              maxY: maxY,
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  color: Colors.greenAccent,
+                  barWidth: 3,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter:
+                        (spot, percent, barData, index) => FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.greenAccent,
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        ),
+                  ),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.greenAccent.withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   void _mostrarTarjetasDialog(String categoria, String filtro) {
-    List<Tarjeta> tarjetasFiltradas = [];
-
-    if (filtro == "vencimiento") {
-      final hoy = DateTime.now();
-      tarjetasFiltradas =
-          tarjetas.where((t) {
-            if (categoria == 'Completado (a tiempo)') {
-              return t.estado == EstadoTarjeta.hecho &&
-                  t.fechaCompletado != null &&
-                  (t.fechaVencimiento == null ||
-                      !t.fechaCompletado!.isAfter(t.fechaVencimiento!));
-            } else if (categoria == 'Completado (con retraso)') {
-              return t.estado == EstadoTarjeta.hecho &&
-                  t.fechaCompletado != null &&
-                  t.fechaVencimiento != null &&
-                  t.fechaCompletado!.isAfter(t.fechaVencimiento!);
-            } else if (categoria == 'Completado (sin fecha)') {
-              return t.estado == EstadoTarjeta.hecho &&
-                  t.fechaCompletado == null;
-            } else if (categoria == 'Vencido') {
-              return t.estado != EstadoTarjeta.hecho &&
-                  t.fechaVencimiento != null &&
-                  t.fechaVencimiento!.isBefore(hoy);
-            } else if (categoria == 'Por vencer (próximos 2 días)') {
-              return t.estado != EstadoTarjeta.hecho &&
-                  t.fechaVencimiento != null &&
-                  !t.fechaVencimiento!.isBefore(hoy) &&
-                  t.fechaVencimiento!.difference(hoy).inDays <= 2;
-            } else if (categoria == 'Por vencer (más de 2 días)') {
-              return t.estado != EstadoTarjeta.hecho &&
-                  t.fechaVencimiento != null &&
-                  t.fechaVencimiento!.difference(hoy).inDays > 2;
-            } else if (categoria == 'Sin fecha') {
-              return t.fechaVencimiento == null;
-            }
-            return false;
-          }).toList();
-    } else {
-      tarjetasFiltradas =
-          tarjetas.where((t) {
-            if (filtro == "lista") {
-              final lista = listas.firstWhere(
-                (l) => l.titulo == categoria,
-                orElse: () => ListaDatos(id: '', titulo: ''),
-              );
-              return t.idLista == lista.id;
-            } else if (filtro == "miembro") {
-              return t.miembro == categoria ||
-                  (categoria == "Sin asignar" && t.miembro.isEmpty);
-            } else if (filtro == "estado") {
-              return t.estado.name == categoria;
-            }
-            return false;
-          }).toList();
+    final tarjetasFiltradas = _filterCardsByCategory(categoria, filtro);
+    if (tarjetasFiltradas.isEmpty) {
+      _showErrorSnackbar('No hay tarjetas en esta categoría');
+      return;
     }
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: Text(
-            'Tarjetas - $categoria (${tarjetasFiltradas.length})',
-            style: const TextStyle(color: Colors.white),
+      builder:
+          (_) => _CardsDialog(
+            categoria: categoria,
+            tarjetas: tarjetasFiltradas,
+            listas: listas,
           ),
-          content: SizedBox(
-            width: 400,
-            height: 500,
-            child:
-                tarjetasFiltradas.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No hay tarjetas en esta categoría',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    )
-                    : ListView.builder(
-                      itemCount: tarjetasFiltradas.length,
-                      itemBuilder: (context, index) {
-                        final tarjeta = tarjetasFiltradas[index];
-                        final tiempoInfo = tarjeta.tiempoRestanteCalculado;
-                        final nombreLista =
-                            listas
-                                .firstWhere(
-                                  (l) => l.id == tarjeta.idLista,
-                                  orElse:
-                                      () => ListaDatos(
-                                        id: '',
-                                        titulo: 'Desconocida',
-                                      ),
-                                )
-                                .titulo;
-
-                        return Card(
-                          color: Colors.grey[800],
-                          margin: const EdgeInsets.all(8),
-                          child: ListTile(
-                            title: Text(
-                              tarjeta.titulo,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Lista: $nombreLista',
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                if (tarjeta.miembro.isNotEmpty)
-                                  Text(
-                                    'Miembro: ${tarjeta.miembro}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                Text(
-                                  'Estado: ${tarjeta.estado.name}',
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                if (tarjeta.fechaVencimiento != null)
-                                  Text(
-                                    'Vence: ${DateFormat('dd/MM/yyyy').format(tarjeta.fechaVencimiento!)}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                Text(
-                                  tiempoInfo['text'],
-                                  style: TextStyle(color: tiempoInfo['color']),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        );
-      },
     );
+  }
+
+  List<Tarjeta> _filterCardsByCategory(String categoria, String filtro) {
+    final hoy = DateTime.now();
+    return tarjetas.where((t) {
+      switch (filtro) {
+        case "vencimiento":
+          return _filterByDueDate(t, categoria, hoy);
+        case "lista":
+          return listas.any((l) => l.titulo == categoria && t.idLista == l.id);
+        case "miembro":
+          return t.miembro == categoria ||
+              (categoria == "Sin asignar" && t.miembro.isEmpty);
+        case "estado":
+          return t.estado.name == categoria;
+        default:
+          return false;
+      }
+    }).toList();
+  }
+
+  bool _filterByDueDate(Tarjeta t, String categoria, DateTime hoy) {
+    if (categoria == 'Completado (a tiempo)') {
+      return t.estado == EstadoTarjeta.hecho &&
+          t.fechaCompletado != null &&
+          (t.fechaVencimiento == null ||
+              !t.fechaCompletado!.isAfter(t.fechaVencimiento!));
+    } else if (categoria == 'Completado (con retraso)') {
+      return t.estado == EstadoTarjeta.hecho &&
+          t.fechaCompletado != null &&
+          t.fechaVencimiento != null &&
+          t.fechaCompletado!.isAfter(t.fechaVencimiento!);
+    } else if (categoria == 'Completado (sin fecha)') {
+      return t.estado == EstadoTarjeta.hecho && t.fechaCompletado == null;
+    } else if (categoria == 'Vencido') {
+      return t.estado != EstadoTarjeta.hecho &&
+          t.fechaVencimiento != null &&
+          t.fechaVencimiento!.isBefore(hoy);
+    } else if (categoria == 'Por vencer (próximos 2 días)') {
+      return t.estado != EstadoTarjeta.hecho &&
+          t.fechaVencimiento != null &&
+          !t.fechaVencimiento!.isBefore(hoy) &&
+          t.fechaVencimiento!.difference(hoy).inDays <= 2;
+    } else if (categoria == 'Por vencer (más de 2 días)') {
+      return t.estado != EstadoTarjeta.hecho &&
+          t.fechaVencimiento != null &&
+          t.fechaVencimiento!.difference(hoy).inDays > 2;
+    } else if (categoria == 'Sin fecha') {
+      return t.fechaVencimiento == null;
+    }
+    return false;
   }
 
   void _mostrarDialogoConfiguracion({bool editar = false, int? index}) {
@@ -1165,15 +926,9 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                     DropdownButtonFormField<String>(
                       value: tipo,
                       dropdownColor: const Color(0xFF3A3A3A),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: "Tipo de gráfica",
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white30),
-                        ),
-                        focusedBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent),
-                        ),
+                        labelStyle: TextStyle(color: Colors.white70),
                       ),
                       style: const TextStyle(color: Colors.white),
                       items: const [
@@ -1181,7 +936,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "barras",
                           child: Row(
                             children: [
-                              Icon(Icons.bar_chart, color: Colors.white70),
+                              Icon(Icons.bar_chart, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Barras"),
                             ],
@@ -1191,7 +946,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "circular",
                           child: Row(
                             children: [
-                              Icon(Icons.pie_chart, color: Colors.white70),
+                              Icon(Icons.pie_chart, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Circular"),
                             ],
@@ -1201,7 +956,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "lineas",
                           child: Row(
                             children: [
-                              Icon(Icons.show_chart, color: Colors.white70),
+                              Icon(Icons.show_chart, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Líneas"),
                             ],
@@ -1219,15 +974,9 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                     DropdownButtonFormField<String>(
                       value: filtro,
                       dropdownColor: const Color(0xFF3A3A3A),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: "Filtrar por",
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white30),
-                        ),
-                        focusedBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blueAccent),
-                        ),
+                        labelStyle: TextStyle(color: Colors.white70),
                       ),
                       style: const TextStyle(color: Colors.white),
                       items: const [
@@ -1235,7 +984,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "lista",
                           child: Row(
                             children: [
-                              Icon(Icons.list_alt, color: Colors.white70),
+                              Icon(Icons.list_alt, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Lista"),
                             ],
@@ -1245,7 +994,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "miembro",
                           child: Row(
                             children: [
-                              Icon(Icons.person, color: Colors.white70),
+                              Icon(Icons.person, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Miembro"),
                             ],
@@ -1255,7 +1004,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "vencimiento",
                           child: Row(
                             children: [
-                              Icon(Icons.calendar_today, color: Colors.white70),
+                              Icon(Icons.calendar_today, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Fecha de vencimiento"),
                             ],
@@ -1265,7 +1014,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                           value: "estado",
                           child: Row(
                             children: [
-                              Icon(Icons.flag, color: Colors.white70),
+                              Icon(Icons.flag, color: Colors.white),
                               SizedBox(width: 8),
                               Text("Estado"),
                             ],
@@ -1283,15 +1032,9 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                       DropdownButtonFormField<String>(
                         value: periodo,
                         dropdownColor: const Color(0xFF3A3A3A),
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: "Periodo de tiempo",
-                          labelStyle: const TextStyle(color: Colors.white70),
-                          enabledBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white30),
-                          ),
-                          focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.blueAccent),
-                          ),
+                          labelStyle: TextStyle(color: Colors.white70),
                         ),
                         style: const TextStyle(color: Colors.white),
                         items: const [
@@ -1319,10 +1062,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                 ),
                 actions: [
                   TextButton(
-                    child: const Text(
-                      "Cancelar",
-                      style: TextStyle(color: Colors.white70),
-                    ),
+                    child: const Text("Cancelar"),
                     onPressed: () => Navigator.pop(context),
                   ),
                   ElevatedButton(
@@ -1381,9 +1121,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
             icon: const Icon(Icons.menu),
             onSelected: (String value) {
               if (_currentProcessCollectionName == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No hay proceso seleccionado')),
-                );
+                _showErrorSnackbar('No hay proceso seleccionado');
                 return;
               }
 
@@ -1392,7 +1130,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => PlannerScreen(
+                        (context) => PlannerScreenOP(
                           processName: _currentProcessCollectionName,
                         ),
                   ),
@@ -1402,7 +1140,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => PanelTrelloOpe(
+                        (context) => PanelTrelloOp(
                           processName: _currentProcessCollectionName,
                         ),
                   ),
@@ -1412,7 +1150,7 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => KanbanTaskManager(
+                        (context) => KanbanTaskManagerOp(
                           processName: _currentProcessCollectionName,
                         ),
                   ),
@@ -1468,83 +1206,94 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                               childAspectRatio: 2.3,
                             ),
                         itemBuilder: (context, index) {
-                          if (index < 0 || index >= graficas.length) {
-                            return const SizedBox();
-                          }
-                          GraficaConfiguracion config = graficas[index];
-                          return Card(
-                            color: const Color(0xFF3A3A3A),
-                            child: Stack(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
+                          final config = graficas[index];
+                          return FutureBuilder<Widget>(
+                            future: _construirGrafica(config),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState !=
+                                  ConnectionState.done) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+
+                              return Card(
+                                color: const Color(0xFF3A3A3A),
+                                child: Stack(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Icon(
-                                            filtroIconos[config.filtro] ??
-                                                Icons.bar_chart,
-                                            color: Colors.white70,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              _tituloGrafica(config),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                _filtroIconos[config.filtro] ??
+                                                    Icons.bar_chart,
+                                                color: Colors.white70,
+                                                size: 18,
                                               ),
-                                            ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  _tituloGrafica(config),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Expanded(
+                                            child:
+                                                snapshot.data ??
+                                                _buildEmptyState(
+                                                  'Error al cargar',
+                                                ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Expanded(
-                                        child: _construirGrafica(config),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 5,
-                                  right: 5,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed:
-                                            () => _mostrarDialogoConfiguracion(
-                                              editar: true,
-                                              index: index,
+                                    ),
+                                    Positioned(
+                                      top: 5,
+                                      right: 5,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              color: Colors.white,
                                             ),
-                                        tooltip: "Editar gráfica",
+                                            onPressed:
+                                                () =>
+                                                    _mostrarDialogoConfiguracion(
+                                                      editar: true,
+                                                      index: index,
+                                                    ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete,
+                                              color: Colors.redAccent,
+                                            ),
+                                            onPressed:
+                                                () => _deleteGraficaFromBackend(
+                                                  index,
+                                                ),
+                                          ),
+                                        ],
                                       ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.redAccent,
-                                        ),
-                                        onPressed: () async {
-                                          await _deleteGraficaFromBackend(
-                                            index,
-                                          );
-                                        },
-                                        tooltip: "Eliminar gráfica",
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -1556,7 +1305,6 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
                 child: FloatingActionButton(
                   backgroundColor: Colors.white,
                   onPressed: () => _mostrarDialogoConfiguracion(),
-                  tooltip: "Añadir gráfica",
                   child: const Icon(Icons.add, color: Colors.black, size: 35),
                 ),
               ),
@@ -1570,16 +1318,107 @@ class _PanelTrelloState extends State<PanelTrelloOpe> {
 
 Widget _buildEmptyState(String message) {
   return Card(
-    margin: EdgeInsets.all(8),
+    margin: const EdgeInsets.all(8),
     color: Colors.grey[850],
     child: SizedBox(
       height: 280,
       child: Center(
         child: Text(
           message,
-          style: TextStyle(color: Colors.white70, fontSize: 16),
+          style: const TextStyle(color: Colors.white70, fontSize: 16),
         ),
       ),
     ),
   );
+}
+
+class _CardsDialog extends StatelessWidget {
+  final String categoria;
+  final List<Tarjeta> tarjetas;
+  final List<ListaDatos> listas;
+
+  const _CardsDialog({
+    required this.categoria,
+    required this.tarjetas,
+    required this.listas,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.grey[900],
+      title: Text(
+        'Tarjetas - $categoria (${tarjetas.length})',
+        style: const TextStyle(color: Colors.white),
+      ),
+      content: SizedBox(
+        width: 400,
+        height: 500,
+        child:
+            tarjetas.isEmpty
+                ? const Center(
+                  child: Text(
+                    'No hay tarjetas en esta categoría',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                )
+                : ListView.builder(
+                  itemCount: tarjetas.length,
+                  itemBuilder: (context, index) {
+                    final tarjeta = tarjetas[index];
+                    final lista = listas.firstWhere(
+                      (l) => l.id == tarjeta.idLista,
+                      orElse: () => ListaDatos(id: '', titulo: 'Desconocida'),
+                    );
+
+                    return Card(
+                      color: Colors.grey[800],
+                      margin: const EdgeInsets.all(4),
+                      child: ListTile(
+                        title: Text(
+                          tarjeta.titulo,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Lista: ${lista.titulo}',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            if (tarjeta.miembro.isNotEmpty)
+                              Text(
+                                'Miembro: ${tarjeta.miembro}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            Text(
+                              'Estado: ${tarjeta.estado.name}',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            if (tarjeta.fechaVencimiento != null)
+                              Text(
+                                'Vence: ${DateFormat('dd/MM/yyyy').format(tarjeta.fechaVencimiento!)}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            Text(
+                              tarjeta.tiempoRestanteCalculado['text'],
+                              style: TextStyle(
+                                color: tarjeta.tiempoRestanteCalculado['color'],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
+    );
+  }
 }

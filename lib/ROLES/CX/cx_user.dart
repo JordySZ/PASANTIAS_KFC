@@ -493,7 +493,7 @@ class _DashboardPageState extends State<DashboardCx_USERT> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'CX';
+      case 0: return 'CX (USER)';
       case 1: return 'Usuarios';
       case 2: return 'Gestión de Procesos';
       case 3: return 'Tablero de Proyectos';

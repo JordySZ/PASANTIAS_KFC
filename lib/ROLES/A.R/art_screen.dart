@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:login_app/ROLES/A.R/cronogrma/cronograma.dart';
+import 'package:login_app/ROLES/A.R/panel/panel_graficas.dart';
+import 'package:login_app/ROLES/A.R/tabla/home_screen.dart';
+import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:login_app/models/process.dart';
 import 'package:login_app/services/api_service.dart';
+import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+import 'package:login_app/super%20usario/panel/panel_graficas.dart';
+import 'package:login_app/super%20usario/tabla/home_screen.dart';
+import 'projectArt.dart';
+import 'dart:async';
+import 'package:flutter/gestures.dart';
 
 class ARTScreen extends StatefulWidget {
   final String? processName;
@@ -14,21 +24,45 @@ class ARTScreen extends StatefulWidget {
   State<ARTScreen> createState() => _ARTScreenState();
 }
 
-class _ARTScreenState extends State<ARTScreen> {
+class _ARTScreenState extends State<ARTScreen> with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   List<ListaDatos> listas = [];
   List<List<Tarjeta>> tarjetasPorLista = [];
   Map<String, int> _listIdToIndexMap = {};
   Process? _currentProcessDetails;
+  bool _isScreenVisible = true;
+  String? _currentProcessCollectionName;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadData();
+  }
+
+  void _loadData() {
     _loadProcessDetails().then((_) {
       _loadListsFromBackend().then((_) {
         _loadCardsFromBackend();
       });
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _isScreenVisible = true;
+      _loadData();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _isScreenVisible = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadProcessDetails() async {
@@ -37,6 +71,7 @@ class _ARTScreenState extends State<ARTScreen> {
       final Process? process = await _apiService.getProcessByName(widget.processName!);
       setState(() {
         _currentProcessDetails = process;
+        _currentProcessCollectionName = widget.processName;
       });
     } catch (e) {
       print('Error al cargar detalles del proceso: $e');
@@ -84,7 +119,6 @@ class _ARTScreenState extends State<ARTScreen> {
     }
   }
 
-  // Método para actualizar el estado de una tarjeta
   Future<void> _actualizarEstadoTarjeta(Tarjeta tarjeta, EstadoTarjeta nuevoEstado) async {
     try {
       final tarjetaActualizada = tarjeta.copyWith(
@@ -98,7 +132,6 @@ class _ARTScreenState extends State<ARTScreen> {
       );
 
       if (success != null) {
-        // Actualizar la lista local
         setState(() {
           final listIndex = _listIdToIndexMap[tarjeta.idLista];
           if (listIndex != null) {
@@ -120,18 +153,12 @@ class _ARTScreenState extends State<ARTScreen> {
     }
   }
 
-  // Filtra las tarjetas para mostrar solo las de DSI
   List<List<Tarjeta>> _filterDSICards() {
     return listas.map((lista) {
       final index = _listIdToIndexMap[lista.id]!;
       return tarjetasPorLista[index].where((tarjeta) {
-        // Caso 1: Miembro es exactamente "DSI"
         if (tarjeta.miembro.trim().toLowerCase() == 'infraestructura') return true;
-        
-        // Caso 2: Miembro contiene "DSI" en cualquier parte
         if (tarjeta.miembro.toLowerCase().contains('infraestructura')) return true;
-        
-        // Caso 3: Miembro es una lista separada por comas que incluye DSI
         final miembros = tarjeta.miembro.split(',').map((m) => m.trim().toLowerCase()).toList();
         return miembros.contains('infraestructura');
       }).toList();
@@ -210,7 +237,7 @@ class _ARTScreenState extends State<ARTScreen> {
     );
   }
 
-@override
+  @override
 Widget build(BuildContext context) {
   final filteredCards = _filterDSICards();
   
@@ -218,174 +245,254 @@ Widget build(BuildContext context) {
     appBar: AppBar(
       title: Text(
         'Tareas infraestructura - ${widget.processName ?? ''}',
-        style: TextStyle(color: Colors.white), // Texto en color blanco
+        style: TextStyle(color: Colors.white),
       ),
-      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 255, 255, 255)),
-        onPressed: () => Navigator.pop(context),
-      ),
+      backgroundColor: Colors.black,
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onSelected: (String value) {
+            if (_currentProcessCollectionName == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Por favor, crea o selecciona un proceso antes de navegar.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            if (value == 'cronograma') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PlannerScreenAR(
+                   processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            } else if (value == 'panel') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PanelTrelloAR(
+                   processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            } else if (value == 'tablas') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => KanbanTaskManagerAR(
+                    processName: _currentProcessCollectionName,
+                  ),
+                ),
+              );
+            }
+          },
+        itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'cronograma',
+                child: Text('Cronograma', style: TextStyle(color: Colors.black)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'tablas',
+                child: Text('Tablas', style: TextStyle(color: Colors.black)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'panel',
+                child: Text('Panel', style: TextStyle(color: Colors.black)),
+              ),
+               ]
+        ), 
+      ],
     ),
-    body: _buildContent(filteredCards),
-  );
-}
-  Widget _buildContent(List<List<Tarjeta>> filteredCards) {
-    if (listas.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Scrollbar(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < listas.length; i++)
-                if (filteredCards[i].isNotEmpty)
-                  _buildLista(listas[i], filteredCards[i]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLista(ListaDatos lista, List<Tarjeta> tarjetas) {
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.all(8.0),
-      padding: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: Colors.grey),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              lista.titulo,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+   body: Stack(
+      children: [
+        // Contenido principal
+        Positioned.fill(
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: { 
+                PointerDeviceKind.touch, 
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12.0), // Espacio para la scrollbar
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < listas.length; i++)
+                      if (filteredCards[i].isNotEmpty)
+                        Container(
+                          width: 300,
+                          child: _buildLista(listas[i], filteredCards[i]),
+                        ),
+                  ],
+                ),
               ),
             ),
           ),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: tarjetas.length,
-              itemBuilder: (context, index) {
-                final tarjeta = tarjetas[index];
-                final isDSIOnly = tarjeta.miembro.trim().toLowerCase() == 'infraestructura';
+        ),
+        
+        // Scrollbar posicionada abajo
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            height: 12,
+            child: Scrollbar(
+              controller: ScrollController(), // Usa el mismo controller si necesitas sincronización
+              thumbVisibility: true,
+              trackVisibility: true,
+              thickness: 12,
+              radius: Radius.circular(6),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: NeverScrollableScrollPhysics(), // Deshabilita el scroll en este nivel
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: 1, // Altura mínima
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-                return GestureDetector(
-                  onTap: () => _mostrarDetallesTarjeta(tarjeta),
-                  onLongPress: () {
-                    if (tarjeta.estado != EstadoTarjeta.hecho) {
-                      _actualizarEstadoTarjeta(tarjeta, EstadoTarjeta.hecho);
-                    }
-                  },
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: _getColorForEstado(tarjeta.estado),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(4),
-                              topRight: Radius.circular(4),
-                            ),
+Widget _buildLista(ListaDatos lista, List<Tarjeta> tarjetas) {
+  return Container(
+    margin: const EdgeInsets.all(8.0),
+    padding: const EdgeInsets.all(8.0),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12.0),
+      border: Border.all(color: Colors.grey),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(
+            lista.titulo,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+        ),
+        Column(
+          children: [
+            for (final tarjeta in tarjetas)
+              _buildTarjeta(tarjeta),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildTarjeta(Tarjeta tarjeta) {
+  final isDSIOnly = tarjeta.miembro.trim().toLowerCase() == 'infraestructura';
+  
+  return GestureDetector(
+    onTap: () => _mostrarDetallesTarjeta(tarjeta),
+    child: Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 5,
+            decoration: BoxDecoration(
+              color: _getColorForEstado(tarjeta.estado),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        final nuevoEstado = tarjeta.estado == EstadoTarjeta.hecho
+                            ? EstadoTarjeta.pendiente
+                            : EstadoTarjeta.hecho;
+                        _actualizarEstadoTarjeta(tarjeta, nuevoEstado);
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: tarjeta.estado == EstadoTarjeta.hecho
+                              ? Colors.green
+                              : Colors.grey[300],
+                          border: Border.all(
+                            color: tarjeta.estado == EstadoTarjeta.hecho
+                                ? Colors.green
+                                : Colors.grey,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  // Checkbox para marcar como completado
-                                  GestureDetector(
-                                    onTap: () {
-                                      final nuevoEstado = tarjeta.estado == EstadoTarjeta.hecho
-                                          ? EstadoTarjeta.pendiente
-                                          : EstadoTarjeta.hecho;
-                                      _actualizarEstadoTarjeta(tarjeta, nuevoEstado);
-                                    },
-                                    child: Container(
-                                      width: 24,
-                                      height: 24,
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: tarjeta.estado == EstadoTarjeta.hecho
-                                            ? Colors.green
-                                            : Colors.grey[300],
-                                        border: Border.all(
-                                          color: tarjeta.estado == EstadoTarjeta.hecho
-                                              ? Colors.green
-                                              : Colors.grey,
-                                        ),
-                                      ),
-                                      child: tarjeta.estado == EstadoTarjeta.hecho
-                                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                          : null,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      tarjeta.titulo,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        decoration: tarjeta.estado == EstadoTarjeta.hecho
-                                            ? TextDecoration.lineThrough
-                                            : TextDecoration.none,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (!isDSIOnly)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Text(
-                                    'Compartido con: ${tarjeta.miembro.replaceAll('Infraestructura', '').replaceAll(',,', ',').trim()}',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              if (tarjeta.fechaVencimiento != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Text(
-                                    tarjeta.tiempoRestanteCalculado['text'],
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                            ],
-                          ),
+                        child: tarjeta.estado == EstadoTarjeta.hecho
+                            ? const Icon(Icons.check, size: 16, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        tarjeta.titulo,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          decoration: tarjeta.estado == EstadoTarjeta.hecho
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
                         ),
-                      ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (!isDSIOnly)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      'Compartido con: ${tarjeta.miembro.replaceAll('Infraestructura', '').replaceAll(',,', ',').trim()}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                );
-              },
+                if (tarjeta.fechaVencimiento != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      tarjeta.tiempoRestanteCalculado['text'],
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
+    ),
+  );
+}}

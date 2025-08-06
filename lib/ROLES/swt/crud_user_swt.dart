@@ -2,6 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:login_app/ROLES/custom.dart';
+import 'package:login_app/ROLES/swt/projectSwt.dart';
+import 'package:login_app/ROLES/swt/sw.dart';
+import 'package:login_app/models/process.dart';
+import 'package:login_app/services/api_service.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:login_app/super%20usario/custom_drawer.dart';
@@ -41,6 +46,7 @@ class _UsuariosScreenState extends State<UsuariosScreenSWT_USERT> {
   void initState() {
     super.initState();
     fetchUsuarios();
+      _fetchProjectsData(); // Añade esto
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -873,6 +879,202 @@ class _UsuariosScreenState extends State<UsuariosScreenSWT_USERT> {
     );
   }
 
+  List<Project8> _projectsFiltered = [];
+  final ApiService _apiService = ApiService();
+  bool _isLoadingProjects = true;
+  String? _projectsErrorMessage;
+  List<Project8> _projects = [];
+  Timer? _completionCheckerTimer;
+  List<Project8> _completedProjectsToNotify = [];
+  double completedPercent = 0.0;
+  double inProgressPercent = 0.0;
+  double pendingPercent = 0.0;
+  int selectedCircleSegment = -1;
+  int totalProyectos = 0;
+  final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
+
+
+
+
+Future<void> _fetchProjectsData() async {
+    setState(() {
+      _isLoadingProjects = true;
+      _projectsErrorMessage = null;
+    });
+    try {
+      final fetchedProcesses = await _apiService.getProcesses();
+      setState(() {
+        _projects = fetchedProcesses.map((process) => Project8(
+          name: process.nombre_proceso,
+          startDate: process.startDate.toIso8601String(),
+          endDate: process.endDate.toIso8601String(),
+          progress: process.progress ?? 0.0,
+          estado: process.estado,
+        )).toList();
+        _projectsFiltered = _projects;
+        _isLoadingProjects = false;
+        _calculateProjectPercentages();
+      });
+      
+      _completionCheckerTimer?.cancel();
+      _startCompletionChecker();
+    } catch (e) {
+      setState(() {
+        _projectsErrorMessage = 'Error al cargar los procesos: $e';
+        _isLoadingProjects = false;
+      });
+    }
+  }
+
+  void _calculateProjectPercentages() {
+    if (_projects.isEmpty) {
+      setState(() {
+        completedPercent = 0.0;
+        inProgressPercent = 0.0;
+        pendingPercent = 0.0;
+        totalProyectos = 0;
+      });
+      return;
+    }
+
+    int completedCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'echo').length;
+    int inProgressCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso').length;
+    int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente').length;
+
+    int otherCount = _projects.length - completedCount - inProgressCount - pendingCount;
+    pendingCount += otherCount;
+
+    int total = _projects.length;
+
+    setState(() {
+      completedPercent = completedCount / total;
+      inProgressPercent = inProgressCount / total;
+      pendingPercent = pendingCount / total;
+      totalProyectos = total;
+    });
+  }
+ void _startCompletionChecker() {
+    _completionCheckerTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (!mounted) return;
+      
+      final now = DateTime.now().toLocal();
+      final completedProjects = _projects.where((project) {
+        try {
+          final endDate = DateTime.parse(project.endDate).toLocal();
+          return (now.isAfter(endDate) || now.isAtSameMomentAs(endDate)) && 
+                 project.estado?.toLowerCase() != 'echo';
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+
+      if (completedProjects.isNotEmpty) {
+        setState(() {
+          _completedProjectsToNotify = completedProjects;
+        });
+        _showCompletionAlert();
+      }
+    });
+  }
+
+
+
+
+ void _showCompletionAlert() {
+    if (_completedProjectsToNotify.isEmpty || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text(_completedProjectsToNotify.length == 1 
+              ? '¡Proceso completado!'
+              : '¡Procesos completados!'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _completedProjectsToNotify.map((project) {
+                return ListTile(
+                  title: Text(project.name),
+                  subtitle: Text('Finalizó: ${_formatEndDate(project.endDate)}'),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _updateProjectsStatus();
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  String _formatEndDate(String dateString) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateString).toLocal();
+      return '${dateTime.day.toString().padLeft(2, '0')}/'
+             '${dateTime.month.toString().padLeft(2, '0')}/'
+             '${dateTime.year} '
+             '(${dateTime.hour.toString().padLeft(2, '0')}:'
+             '${dateTime.minute.toString().padLeft(2, '0')})';
+    } catch (e) {
+      return 'Fecha Inválida';
+    }
+  }
+
+Future<void> _updateProjectsStatus() async {
+    for (final project in _completedProjectsToNotify) {
+      try {
+        final updated = await _apiService.updateProcess(
+          project.name,
+          Process(
+            nombre_proceso: project.name,
+            startDate: DateTime.parse(project.startDate),
+            endDate: DateTime.parse(project.endDate),
+            estado: 'echo',
+            progress: 1.0,
+          ),
+        );
+        
+        if (updated != null) {
+          setState(() {
+            final index = _projects.indexWhere((p) => p.name == project.name);
+            if (index != -1) {
+              _projects[index] = Project8(
+                name: project.name,
+                startDate: project.startDate,
+                endDate: project.endDate,
+                estado: 'echo',
+                progress: 1.0,
+              );
+            }
+          });
+        }
+      } catch (e) {
+        print('Error al actualizar el estado del proyecto: $e');
+      }
+    }
+    
+    setState(() {
+      _completedProjectsToNotify = [];
+    });
+    _fetchProjectsData();
+  }
+
+
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -891,21 +1093,28 @@ class _UsuariosScreenState extends State<UsuariosScreenSWT_USERT> {
           ),
         ],
       ),
-      drawer: CustomDrawer(
+      drawer: Custom22(
         selectedIndex: 1,
         onItemTap: (index) {
           Navigator.pop(context); // Cierra el drawer
           if (index == 0) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => DashboardPage()),
+              MaterialPageRoute(builder: (_) => DashboardSwt()),
             );
           } else if (index == 1) {
             // Ya estás en UsuariosScreen, no hace falta redirigir
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => TableroScreen( )),
+              MaterialPageRoute(builder: (_) => ProjectsSwt( 
+                    projects: _projectsFiltered,
+    apiService: _apiService,
+    refreshData: _fetchProjectsData,
+    processStatusNotifier: processStatusNotifier,
+    isLoading: _isLoadingProjects,
+    errorMessage: _projectsErrorMessage,
+              )),
             );
           }
         },

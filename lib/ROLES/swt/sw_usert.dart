@@ -404,7 +404,7 @@ class _DashboardPageState extends State<DashboardSwt_usert> {
   
      
 
-      case 2:
+      case 1:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -497,9 +497,8 @@ class _DashboardPageState extends State<DashboardSwt_usert> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'SWT';
-      case 1: return 'Usuarios';
-      case 2: return 'Tablero de Proyectos';
+      case 0: return 'SWT (USER)';
+      case 1: return 'Tablero de Proyectos';
       default: return 'Dashboard';
     }
   }
@@ -507,7 +506,7 @@ class _DashboardPageState extends State<DashboardSwt_usert> {
   Widget _buildPageContent(int index) {
     switch (index) {
       case 0: return _homeContent();
-      case 2: return ProjectsSwt_usert(
+      case 1: return ProjectsSwt_usert(
         projects: _projectsFiltered,
         apiService: _apiService,
         refreshData: _fetchProjectsData,

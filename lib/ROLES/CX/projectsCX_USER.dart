@@ -100,7 +100,7 @@ class _ProjectsTableState extends State<ProjectsTableCX_USERT> {
     onPressed: () {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => DashboardCx()),
+        MaterialPageRoute(builder: (context) => DashboardCx_USERT()),
         (Route<dynamic> route) => false,
       );
     },

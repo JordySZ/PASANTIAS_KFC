@@ -97,7 +97,7 @@ class _ProjectsTableState extends State<ProjectsCONT> {
     onPressed: () {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => DashboardCont()),
+        MaterialPageRoute(builder: (context) => DashboardCont_user()),
         (Route<dynamic> route) => false,
       );
     },

@@ -111,105 +111,110 @@ class Tarjeta {
   }
 
   Map<String, dynamic> get tiempoRestanteCalculado {
-    if (fechaVencimiento == null) {
-      return {'text': '⏳ N/A', 'color': Colors.white70};
+  if (fechaVencimiento == null) {
+    return {'text': '⏳ N/A', 'color': Colors.white70};
+  }
+
+  final DateTime vencimientoNoNula = fechaVencimiento!;
+  final now = DateTime.now();
+
+  // Función auxiliar para contar días laborables entre dos fechas
+  int countBusinessDays(DateTime start, DateTime end) {
+    int days = 0;
+    DateTime current = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    
+    while (current.isBefore(endDate)) {
+      if (current.weekday != DateTime.saturday && current.weekday != DateTime.sunday) {
+        days++;
+      }
+      current = current.add(const Duration(days: 1));
     }
+    return days;
+  }
 
-    final DateTime vencimientoNoNula = fechaVencimiento!;
-    final now = DateTime.now();
-    final diff = vencimientoNoNula.difference(now);
-
-    if (estado == EstadoTarjeta.hecho) {
-      if (fechaCompletado != null) {
-        final DateTime actualFechaCompletado = fechaCompletado!;
-        final differenceWhenCompleted = actualFechaCompletado.difference(
-          vencimientoNoNula,
-        );
-
-        final days = differenceWhenCompleted.abs().inDays;
-        final hours = differenceWhenCompleted.abs().inHours.remainder(24);
-        final minutes = differenceWhenCompleted.abs().inMinutes.remainder(60);
-
-        String timeString = '';
-        if (days > 0) {
-          timeString += '$days día${days == 1 ? '' : 's'}';
-        }
-        if (hours > 0) {
-          if (timeString.isNotEmpty) timeString += ', ';
-          timeString += '$hours hora${hours == 1 ? '' : 's'}';
-        }
-        if (minutes > 0) {
-          if (timeString.isNotEmpty) timeString += ', ';
-          timeString += '$minutes minuto${minutes == 1 ? '' : 's'}';
-        }
-
-        if (actualFechaCompletado.isAfter(vencimientoNoNula)) {
-          return {
-            'text': 'Completado (con $timeString de retraso)',
-            'color': const Color.fromARGB(255, 230, 42, 42),
-          };
-        } else {
-          return {
-            'text': 'Completado (con $timeString restantes)',
-            'color': Colors.green,
-          };
-        }
-      } else {
-        return {
-          'text': 'Completado (sin fecha de completado)',
-          'color': Colors.green,
-        };
-      }
-    }
-
-    if (diff.isNegative) {
-      final absDiff = diff.abs();
-      final days = absDiff.inDays;
-      final hours = absDiff.inHours.remainder(24);
-      final minutes = absDiff.inMinutes.remainder(60);
-
-      String expiredTime = '';
-      if (days > 0) {
-        expiredTime += '$days día${days == 1 ? '' : 's'}';
-      }
-      if (hours > 0) {
-        if (expiredTime.isNotEmpty) expiredTime += ', ';
-        expiredTime += '$hours hora${hours == 1 ? '' : 's'}';
-      }
-      if (minutes > 0) {
-        if (expiredTime.isNotEmpty) expiredTime += ', ';
-        expiredTime += '$minutes minuto${minutes == 1 ? '' : 's'}';
-      }
-
-      return {
-        'text': expiredTime.isEmpty
-            ? '⚠️ Vencido (hace menos de 1 minuto)'
-            : '⚠️ Vencido hace $expiredTime',
-        'color': Colors.red,
-      };
-    }
-
+  // Función auxiliar para calcular tiempo exacto (horas/minutos)
+  String formatTimeDifference(Duration diff) {
     final days = diff.inDays;
     final hours = diff.inHours.remainder(24);
     final minutes = diff.inMinutes.remainder(60);
 
+    String timeString = '';
     if (days > 0) {
-      return {
-        'text': '⏳ Faltan $days día${days == 1 ? '' : 's'}${hours > 0 ? ' y $hours hora${hours == 1 ? '' : 's'}' : ''}',
-        'color': Colors.white70,
-      };
-    } else if (hours > 0) {
-      return {
-        'text': '⏳ Faltan $hours hora${hours == 1 ? '' : 's'}${minutes > 0 ? ' y $minutes minuto${minutes == 1 ? '' : 's'}' : ''}',
-        'color': Colors.white70,
-      };
-    } else if (minutes > 0) {
-      return {
-        'text': '⏳ Faltan $minutes minuto${minutes == 1 ? '' : 's'}',
-        'color': Colors.white70,
-      };
+      timeString += '$days día${days == 1 ? '' : 's'}';
+    }
+    if (hours > 0) {
+      if (timeString.isNotEmpty) timeString += ', ';
+      timeString += '$hours hora${hours == 1 ? '' : 's'}';
+    }
+    if (minutes > 0) {
+      if (timeString.isNotEmpty) timeString += ', ';
+      timeString += '$minutes minuto${minutes == 1 ? '' : 's'}';
+    }
+    return timeString;
+  }
+
+  if (estado == EstadoTarjeta.hecho) {
+    if (fechaCompletado != null) {
+      final DateTime actualFechaCompletado = fechaCompletado!;
+      final diff = actualFechaCompletado.difference(vencimientoNoNula);
+      final businessDays = countBusinessDays(
+        diff.isNegative ? actualFechaCompletado : vencimientoNoNula,
+        diff.isNegative ? vencimientoNoNula : actualFechaCompletado
+      );
+      
+      final timeString = formatTimeDifference(diff.abs());
+      final businessDaysText = businessDays > 0 ? ' ($businessDays día${businessDays == 1 ? '' : 's'} laborable${businessDays == 1 ? '' : 's'})' : '';
+
+      if (actualFechaCompletado.isAfter(vencimientoNoNula)) {
+        return {
+          'text': '✅ Completado con $timeString de retraso$businessDaysText',
+          'color': const Color.fromARGB(255, 230, 42, 42),
+        };
+      } else {
+        return {
+          'text': '✅ Completado con $timeString de anticipación$businessDaysText',
+          'color': Colors.green,
+        };
+      }
     } else {
-      return {'text': '⏳ Vence ahora', 'color': Colors.amber};
+      return {
+        'text': '✅ Completado (sin fecha de completado)',
+        'color': Colors.green,
+      };
     }
   }
+
+  final diff = vencimientoNoNula.difference(now);
+  
+  if (diff.isNegative) {
+    final timeString = formatTimeDifference(diff.abs());
+    final businessDays = countBusinessDays(vencimientoNoNula, now);
+    final businessDaysText = businessDays > 0 ? ' ($businessDays día${businessDays == 1 ? '' : 's'} laborable${businessDays == 1 ? '' : 's'})' : '';
+    
+    return {
+      'text': timeString.isEmpty 
+          ? '⚠️ Vencido hace menos de 1 minuto$businessDaysText'
+          : '⚠️ Vencido hace $timeString$businessDaysText',
+      'color': Colors.red,
+    };
+  }
+
+  // Calcular días laborables restantes
+  final businessDaysRemaining = countBusinessDays(now, vencimientoNoNula);
+  final timeString = formatTimeDifference(diff);
+  
+  if (businessDaysRemaining > 0) {
+    return {
+      'text': '⏳ $timeString restantes ($businessDaysRemaining día${businessDaysRemaining == 1 ? '' : 's'} laborable${businessDaysRemaining == 1 ? '' : 's'})',
+      'color': businessDaysRemaining <= 3 ? Colors.orange : Colors.white70,
+    };
+  } else {
+    // Cuando no quedan días laborables pero aún hay tiempo (horas/minutos)
+    return {
+      'text': '⏳ $timeString restantes (hoy)',
+      'color': Colors.amber,
+    };
+  }
 }
+ }

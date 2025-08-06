@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:login_app/ROLES/Operaciones/cronogrma/cronograma.dart';
 import 'package:login_app/ROLES/Operaciones/op.dart';
 import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
+import 'package:login_app/ROLES/Operaciones/tabla/home_screen.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/home_page.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
@@ -975,7 +977,12 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
   void _mostrarDialogoTienda(Tarjeta tarjeta, int listaIndex, int tarjetaIndex) {
   final TextEditingController descripcionController = 
     TextEditingController(text: tarjeta.descripcionTienda);
-  String? tiendaSeleccionada = tarjeta.tiendaAsignada.isNotEmpty 
+  
+  // Lista de opciones válidas
+  final opcionesValidas = ['Pick', 'Canales Propios', 'Agregadores', 'Kioscos'];
+  
+  // Verificar que el valor actual exista en las opciones válidas
+  String? tiendaSeleccionada = opcionesValidas.contains(tarjeta.tiendaAsignada) 
     ? tarjeta.tiendaAsignada 
     : null;
 
@@ -989,7 +996,7 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
           children: [
             DropdownButtonFormField<String>(
               value: tiendaSeleccionada,
-              items: ['Tienda 1', 'Tienda 2', 'Tienda 3']
+              items: opcionesValidas
                   .map((tienda) => DropdownMenuItem(
                         value: tienda,
                         child: Text(tienda),
@@ -999,7 +1006,7 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
                 tiendaSeleccionada = value;
               },
               decoration: const InputDecoration(
-                labelText: 'Seleccione una tienda',
+                labelText: 'Seleccione un canal',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -1036,7 +1043,6 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
     },
   );
 }
-
  @override
 Widget build(BuildContext context) {
   // Verificar el estado cada vez que se construye la pantalla
@@ -1090,7 +1096,7 @@ Widget build(BuildContext context) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlannerScreen(
+                    builder: (context) => PlannerScreenOP(
                       processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -1099,7 +1105,7 @@ Widget build(BuildContext context) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PanelTrelloOpe(
+                    builder: (context) => PanelTrelloOp(
                       processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -1108,7 +1114,7 @@ Widget build(BuildContext context) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => KanbanTaskManager(
+                    builder: (context) => KanbanTaskManagerOp(
                       processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -1617,128 +1623,7 @@ Widget buildInfoRow(String label, String value) {
          return Colors.grey.shade600; // Gris más oscuro
     }
   }
-void _mostrarDialogoTienda(Tarjeta tarjeta, int listaIndex, int tarjetaIndex) {
-  final TextEditingController descripcionController = 
-    TextEditingController(text: tarjeta.descripcionTienda);
-  String? tiendaSeleccionada = tarjeta.tiendaAsignada.isNotEmpty 
-    ? tarjeta.tiendaAsignada 
-    : null;
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Asignación de código de tienda'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: tiendaSeleccionada,
-              items: ['Tienda 1', 'Tienda 2', 'Tienda 3']
-                  .map((tienda) => DropdownMenuItem(
-                        value: tienda,
-                        child: Text(tienda),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                tiendaSeleccionada = value;
-              },
-              decoration: InputDecoration(
-                labelText: 'Seleccione una tienda',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: descripcionController,
-              decoration: InputDecoration(
-                labelText: 'Descripción',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final tarjetaActualizada = tarjeta.copyWith(
-                tiendaAsignada: tiendaSeleccionada ?? '',
-                descripcionTienda: descripcionController.text,
-              );
-              _actualizarTarjetaEnBackend(
-                  listaIndex, tarjetaIndex, tarjetaActualizada);
-              Navigator.pop(context);
-            },
-            child: Text('Guardar'),
-          ),
-        ],
-      );
-    },
-  );
-}
- void _actualizarTarjetaEnBackend(
-    int indexLista,
-    int indexTarjeta,
-    Tarjeta tarjetaActualizada,
-  ) async {
-    print(
-      'FLUTTER DEBUG TABLERO: _actualizarTarjetaEnBackend llamado. _currentProcessCollectionName: $_currentProcessCollectionName',
-    );
-    if (_currentProcessCollectionName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, crea o selecciona un proceso primero para actualizar tarjetas.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    try {
-      final Tarjeta? updatedCard = await _apiService.updateCard(
-        _currentProcessCollectionName!,
-        tarjetaActualizada,
-      );
-      if (updatedCard != null) {
-        setState(() {
-          tarjetasPorLista[indexLista][indexTarjeta] = updatedCard;
-        });
-        print(
-          'FLUTTER DEBUG TABLERO: Tarjeta actualizada exitosamente en "$_currentProcessCollectionName": ${updatedCard.titulo}',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tarjeta "${updatedCard.titulo}" actualizada exitosamente.'),
-            backgroundColor: const Color.fromARGB(255, 20, 170, 6),
-          ),
-        );
-      } else {
-        print(
-          'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - _apiService.updateCard devolvió null.',
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar la tarjeta.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(
-        'FLUTTER ERROR TABLERO: _actualizarTarjetaEnBackend - Excepción al actualizar tarjeta: $e',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al actualizar la tarjeta: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
   @override
   Widget build(BuildContext context) {
     return Container(

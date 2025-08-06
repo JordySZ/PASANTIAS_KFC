@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:login_app/ROLES/CONT/Tabla_soli.dart';
 import 'package:login_app/ROLES/CONT/crud_user.dart';
 import 'package:login_app/ROLES/CONT/projectCont.dart';
+import 'package:login_app/ROLES/CONT/tabla_solicitud.dart';
 
 import 'package:login_app/ROLES/custom.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
@@ -329,6 +331,14 @@ class _DashboardPageState extends State<DashboardCont> {
           ),
         );
         break;
+
+           case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SolicitudesAdminScreen()),
+        );
+        break;
+     
       case 4:
         Navigator.push(
           context,
@@ -397,7 +407,7 @@ class _DashboardPageState extends State<DashboardCont> {
           ),
         ],
       ),
-      drawer: Custom22(
+      drawer: tablasoli(
         selectedIndex: _selectedIndex,
         onItemTap: _onItemTapped,
       ),
@@ -410,6 +420,7 @@ class _DashboardPageState extends State<DashboardCont> {
       case 0: return 'Contabilidad';
       case 1: return 'Usuarios';
       case 2: return 'Tablero de Proyectos';
+      case 3: return 'Tablero de Solicitud de Procesos';
       default: return 'Dashboard';
     }
   }
@@ -427,6 +438,7 @@ class _DashboardPageState extends State<DashboardCont> {
       );
       case 1: return UsuariosScreenCONT();
 
+      case 3: return SolicitudesAdminScreen();
 
       default: return Center(child: Text('Página no encontrada', style: TextStyle(color: textColor)));
     }

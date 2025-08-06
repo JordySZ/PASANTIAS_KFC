@@ -33,14 +33,14 @@ import 'dart:async';
   });
 }
 
-class DashboardCont extends StatefulWidget {
-  const DashboardCont({super.key});
+class DashboardCont_user extends StatefulWidget {
+  const DashboardCont_user({super.key});
 
   @override
-  State<DashboardCont> createState() => _DashboardPageState();
+  State<DashboardCont_user> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardCont> {
+class _DashboardPageState extends State<DashboardCont_user> {
   final ValueNotifier<String?> processStatusNotifier = ValueNotifier<String?>(null);
   Timer? _completionCheckerTimer;
   List<Projectcont_usert> _completedProjectsToNotify = [];
@@ -403,7 +403,7 @@ class _DashboardPageState extends State<DashboardCont> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'Contabilidad';
+      case 0: return 'Contabilidad (USER)';
       case 1: return 'Usuarios';
       case 2: return 'Tablero de Proyectos';
       default: return 'Dashboard';

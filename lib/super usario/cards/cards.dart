@@ -21,8 +21,40 @@ import 'package:flutter/material.dart' as material;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
-
+import 'package:collection/collection.dart';
 import 'dart:html' as html;
+
+extension DateTimeExtensions on DateTime {
+  bool isWeekend() {
+    return weekday == DateTime.saturday || weekday == DateTime.sunday;
+  }
+
+  DateTime nextBusinessDay() {
+    DateTime result = this;
+
+    do {
+      result = result.add(const Duration(days: 1));
+    } while (result.isWeekend());
+    return result;
+  }
+
+  int businessDaysDifference(DateTime other) {
+    if (other.isBefore(this)) return 0;
+
+    int days = 0;
+    DateTime current = DateTime(year, month, day);
+    final endDate = DateTime(other.year, other.month, other.day);
+
+    while (current.isBefore(endDate)) {
+      if (!current.isWeekend()) {
+        days++;
+      }
+      current = current.add(const Duration(days: 1));
+    }
+
+    return days;
+  }
+}
 const List<String> miembrosPredefinidos = [
   'DSI',
   'Infraestructura',
@@ -221,11 +253,27 @@ final TextEditingController _endTimeController = TextEditingController();
   String? _selectedEstado;
 
   Process? _currentProcessDetails;
+    Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-   _estadoTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+     _fetchProjectsData(); // Añade esto
+     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    if (mounted) {
+      _refreshData();
+    }
+  });
+
+  _estadoTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    if (!mounted || _currentProcessDetails == null) return;
+    if (_currentProcessDetails!.estado == 'echo') {
+      timer.cancel();
+      return;
+    }
+    _verificarEstadoAutomatico();
+  });
+   _estadoTimer = Timer.periodic(Duration(seconds: 5), (timer) {
     if (!mounted || _currentProcessDetails == null) return;
 
     // Si el estado ya es "echo", cancelamos el Timer
@@ -253,6 +301,77 @@ final TextEditingController _endTimeController = TextEditingController();
       });
     }
   }
+  Future<void> _refreshData() async {
+  if (_currentProcessCollectionName == null || !mounted) return;
+
+  try {
+    final newProcessDetails = await _apiService.getProcessByName(_currentProcessCollectionName!);
+    final newLists = await _apiService.getLists(_currentProcessCollectionName!);
+    final newCards = await _apiService.getCards(_currentProcessCollectionName!);
+
+    // Función de comparación para Process
+    bool processChanged(Process? a, Process? b) {
+      if (a == null || b == null) return a != b;
+      return a.toComparisonJson().toString() != b.toComparisonJson().toString();
+    }
+
+    // Función de comparación para Listas
+    bool listsChanged(List<ListaDatos> a, List<ListaDatos> b) {
+      if (a.length != b.length) return true;
+      for (int i = 0; i < a.length; i++) {
+        if (a[i].titulo != b[i].titulo || a[i].id != b[i].id) return true;
+      }
+      return false;
+    }
+
+    // Función de comparación para Tarjetas
+    bool cardsChanged(List<Tarjeta> a, List<Tarjeta> b) {
+      if (a.length != b.length) return true;
+      for (int i = 0; i < a.length; i++) {
+        if (a[i].titulo != b[i].titulo || 
+            a[i].estado != b[i].estado ||
+            a[i].idLista != b[i].idLista) return true;
+      }
+      return false;
+    }
+
+    final currentCards = tarjetasPorLista.expand((x) => x).toList();
+    final newCardsFlat = newCards;
+
+    if (processChanged(_currentProcessDetails, newProcessDetails) ||
+        listsChanged(listas, newLists) ||
+        cardsChanged(currentCards, newCardsFlat)) {
+      
+      setState(() {
+        _currentProcessDetails = newProcessDetails;
+        
+        // Actualizar listas
+        listas = newLists;
+        _listIdToIndexMap.clear();
+        for (int i = 0; i < listas.length; i++) {
+          _listIdToIndexMap[listas[i].id] = i;
+        }
+        
+        // Actualizar tarjetas
+        tarjetasPorLista = List.generate(listas.length, (_) => []);
+        for (var card in newCards) {
+          final listIndex = _listIdToIndexMap[card.idLista];
+          if (listIndex != null) {
+            tarjetasPorLista[listIndex].add(card);
+          }
+        }
+      });
+      print('Datos actualizados - Hubo cambios reales');
+    }
+  } catch (e) {
+    print('Error en refreshData: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al actualizar: ${e.toString()}')),
+      );
+    }
+  }
+}
  Future<void> _actualizarEstadoProceso(String nuevoEstado) async {
   print('Intentando actualizar estado a: $nuevoEstado');
   if (_currentProcessCollectionName == null || !mounted) {
@@ -332,6 +451,12 @@ void _verificarEstadoAutomatico() {
     _startDateController.dispose();
     _endDateController.dispose();
       _endTimeController.dispose(); // Añade esta línea
+      _refreshTimer?.cancel();
+  _estadoTimer?.cancel();
+  _processNameController.dispose();
+  _startDateController.dispose();
+  _endDateController.dispose();
+  _endTimeController.dispose();
     super.dispose();
   }
 
@@ -802,7 +927,9 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
           nombre_proceso: createdCollectionName,
         );
       });
-
+if (AppData.refreshData != null) {
+      AppData.refreshData!(); // Forzar actualización de la tabla
+    }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lastProcessName', createdCollectionName);
 
@@ -830,8 +957,23 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
         backgroundColor: Colors.red,
       ),
     );
+     Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProjectsTable(
+          projects: AppData.projects ?? [],
+          apiService: AppData.apiService!,
+          refreshData: AppData.refreshData!,
+          processStatusNotifier: AppData.processStatusNotifier!,
+          isLoading: AppData.isLoading,
+          errorMessage: AppData.errorMessage,
+        ),
+      ),
+      (route) => false,
+    );
   }
 }
+
 
   void agregarListaNueva() async {
     if (_currentProcessCollectionName == null) {
@@ -1387,6 +1529,199 @@ String _calcularEstadoProceso(DateTime startDate, DateTime endDate) {
       );
     }
   }
+List<Project> _projectsFiltered = [];
+
+  bool _isLoadingProjects = true;
+  String? _projectsErrorMessage;
+  List<Project> _projects = [];
+  Timer? _completionCheckerTimer;
+  List<Project> _completedProjectsToNotify = [];
+  double completedPercent = 0.0;
+  double inProgressPercent = 0.0;
+  double pendingPercent = 0.0;
+  int selectedCircleSegment = -1;
+  int totalProyectos = 0;
+
+
+
+
+
+Future<void> _fetchProjectsData() async {
+    setState(() {
+      _isLoadingProjects = true;
+      _projectsErrorMessage = null;
+    });
+    try {
+      final fetchedProcesses = await _apiService.getProcesses();
+      setState(() {
+        _projects = fetchedProcesses.map((process) => Project(
+          name: process.nombre_proceso,
+          startDate: process.startDate.toIso8601String(),
+          endDate: process.endDate.toIso8601String(),
+          progress: process.progress ?? 0.0,
+          estado: process.estado,
+        )).toList();
+        _projectsFiltered = _projects;
+        _isLoadingProjects = false;
+        _calculateProjectPercentages();
+      });
+      
+      _completionCheckerTimer?.cancel();
+      _startCompletionChecker();
+    } catch (e) {
+      setState(() {
+        _projectsErrorMessage = 'Error al cargar los procesos: $e';
+        _isLoadingProjects = false;
+      });
+    }
+  }
+
+  void _calculateProjectPercentages() {
+    if (_projects.isEmpty) {
+      setState(() {
+        completedPercent = 0.0;
+        inProgressPercent = 0.0;
+        pendingPercent = 0.0;
+        totalProyectos = 0;
+      });
+      return;
+    }
+
+    int completedCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'echo').length;
+    int inProgressCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'en proceso').length;
+    int pendingCount = _projects.where((p) => (p.estado?.toLowerCase() ?? '') == 'pendiente').length;
+
+    int otherCount = _projects.length - completedCount - inProgressCount - pendingCount;
+    pendingCount += otherCount;
+
+    int total = _projects.length;
+
+    setState(() {
+      completedPercent = completedCount / total;
+      inProgressPercent = inProgressCount / total;
+      pendingPercent = pendingCount / total;
+      totalProyectos = total;
+    });
+  }
+ void _startCompletionChecker() {
+    _completionCheckerTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (!mounted) return;
+      
+      final now = DateTime.now().toLocal();
+      final completedProjects = _projects.where((project) {
+        try {
+          final endDate = DateTime.parse(project.endDate).toLocal();
+          return (now.isAfter(endDate) || now.isAtSameMomentAs(endDate)) && 
+                 project.estado?.toLowerCase() != 'echo';
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+
+      if (completedProjects.isNotEmpty) {
+        setState(() {
+          _completedProjectsToNotify = completedProjects;
+        });
+        _showCompletionAlert();
+      }
+    });
+  }
+
+
+
+
+ void _showCompletionAlert() {
+    if (_completedProjectsToNotify.isEmpty || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text(_completedProjectsToNotify.length == 1 
+              ? '¡Proceso completado!'
+              : '¡Procesos completados!'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _completedProjectsToNotify.map((project) {
+                return ListTile(
+                  title: Text(project.name),
+                  subtitle: Text('Finalizó: ${_formatEndDate(project.endDate)}'),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _updateProjectsStatus();
+                Navigator.pop(context);
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  String _formatEndDate(String dateString) {
+    try {
+      final DateTime dateTime = DateTime.parse(dateString).toLocal();
+      return '${dateTime.day.toString().padLeft(2, '0')}/'
+             '${dateTime.month.toString().padLeft(2, '0')}/'
+             '${dateTime.year} '
+             '(${dateTime.hour.toString().padLeft(2, '0')}:'
+             '${dateTime.minute.toString().padLeft(2, '0')})';
+    } catch (e) {
+      return 'Fecha Inválida';
+    }
+  }
+
+Future<void> _updateProjectsStatus() async {
+    for (final project in _completedProjectsToNotify) {
+      try {
+        final updated = await _apiService.updateProcess(
+          project.name,
+          Process(
+            nombre_proceso: project.name,
+            startDate: DateTime.parse(project.startDate),
+            endDate: DateTime.parse(project.endDate),
+            estado: 'echo',
+            progress: 1.0,
+          ),
+        );
+        
+        if (updated != null) {
+          setState(() {
+            final index = _projects.indexWhere((p) => p.name == project.name);
+            if (index != -1) {
+              _projects[index] = Project(
+                name: project.name,
+                startDate: project.startDate,
+                endDate: project.endDate,
+                estado: 'echo',
+                progress: 1.0,
+              );
+            }
+          });
+        }
+      } catch (e) {
+        print('Error al actualizar el estado del proyecto: $e');
+      }
+    }
+    
+    setState(() {
+      _completedProjectsToNotify = [];
+    });
+    _fetchProjectsData();
+  }
+
+
+
+
+
 
  @override
 Widget build(BuildContext context) {
@@ -1395,38 +1730,49 @@ Widget build(BuildContext context) {
     _verificarEstadoAutomatico();
   });
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-    appBar: AppBar(
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back, color: Colors.white),
-    onPressed: () {
-      Navigator.pushReplacement(
-        context,
-   MaterialPageRoute(
-    builder: (context) => ProjectsTable(
-      projects: AppData.projects!,
-      apiService: AppData.apiService!,
-      refreshData: AppData.refreshData!,
-      processStatusNotifier: AppData.processStatusNotifier!,
-      isLoading: AppData.isLoading,
-      errorMessage: AppData.errorMessage,
+  backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+  appBar: AppBar(
+    leading: IconButton(
+      icon: const Icon(Icons.arrow_back, color: Colors.white),
+      onPressed: () {
+        // Verificar si hay proyectos antes de navegar
+        if (_projectsFiltered.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProjectsTable(
+                projects: _projectsFiltered,
+                apiService: _apiService,
+                refreshData: _fetchProjectsData,
+                processStatusNotifier: processStatusNotifier,
+                isLoading: _isLoadingProjects,
+                errorMessage: _projectsErrorMessage,
+              ),
+            ),
+          );
+        } else {
+          // Si no hay proyectos, ir al Dashboard
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => DashboardPage()),
+            (Route<dynamic> route) => false,
+          );
+        }
+      },
     ),
-  ),
-      );
-    },
-  ),
-  title: GestureDetector(
-    onTap: () {},
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          _currentProcessCollectionName ?? widget.processName ?? 'Mi Tablero de Trello',
-          style: const TextStyle(color: Colors.white),
-        ),
-      ],
+    title: GestureDetector(
+      onTap: () {},
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _currentProcessCollectionName ?? widget.processName ?? 'Mi Tablero de Trello',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ],
+      ),
     ),
-  ),
+  
   backgroundColor: Colors.black,
   actions: [
     IconButton(

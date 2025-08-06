@@ -396,7 +396,7 @@ class _DashboardPageState extends State<DashboardAr_user> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'A.R';
+      case 0: return 'A.R (USER)';
       case 1: return 'Usuarios';
       case 2: return 'Tablero de Proyectos';
        case 3: return 'Solicitud';

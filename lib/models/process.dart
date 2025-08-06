@@ -87,4 +87,26 @@ class Process {
       progress: progress ?? this.progress,
     );
   }
+
+    Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre_proceso': nombre_proceso,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'estado': estado,
+      'progress': progress,
+    };
+  }
+
+  // Método alternativo para comparación eficiente (opcional)
+  Map<String, dynamic> toComparisonJson() {
+    return {
+      'nombre': nombre_proceso,  // Usando el mismo nombre que en toMap()
+      'fechaInicio': startDate.toIso8601String(),
+      'fechaFin': endDate.toIso8601String(),
+      'estado': estado,
+    };
+  }
 }
+

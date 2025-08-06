@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
 import 'package:login_app/super%20usario/panel/panel_graficas.dart';
-
+import 'dart:async'; // Añade este import para usar Timer
 // Colores modificados según solicitud
 final Color primaryColor = const Color.fromARGB(255, 183, 28, 28); // Rojo del primer código
 final Color secondaryColor = Colors.white; // Fondo de tarjetas blanco
@@ -34,12 +34,29 @@ class _KanbanTaskManagerState extends State<KanbanTaskManager> {
 
   bool showAddForm = false;
   String? estadoFiltro;
+ late Timer _refreshTimer; // Timer para el refresco automático
 
-  @override
+
+   @override
   void initState() {
     super.initState();
     fetchTasks();
     fetchLists();
+    
+    // Configurar el timer para refrescar cada 10 segundos
+    _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (mounted) {
+        fetchTasks();
+        fetchLists();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancelar el timer cuando el widget se destruya
+    _refreshTimer.cancel();
+    super.dispose();
   }
 
   Future<void> fetchTasks() async {

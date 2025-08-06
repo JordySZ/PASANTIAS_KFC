@@ -494,7 +494,7 @@ class _DashboardPageState extends State<DashboardSD_user> {
 
   String _getTitle(int index) {
     switch (index) {
-      case 0: return 'SD';
+      case 0: return 'SD (USER)';
       case 1: return 'Tablero de Proyectos';
       default: return 'Dashboard';
     }
