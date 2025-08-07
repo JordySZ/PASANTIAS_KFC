@@ -1,13 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:login_app/ROLES/A.R/art_screen.dart';
-import 'package:login_app/ROLES/CONT/panel/panel_graficas.dart';
 import 'package:login_app/ROLES/CX/dsi_screen.dart';
 import 'package:login_app/ROLES/CX/panel/panel_graficas.dart';
 import 'package:login_app/ROLES/CX/tabla/home_screen.dart';
-import 'package:login_app/super%20usario/cards/cards.dart';
-import 'package:login_app/super%20usario/panel/panel_graficas.dart';
-import 'package:login_app/super%20usario/tabla/home_screen.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';

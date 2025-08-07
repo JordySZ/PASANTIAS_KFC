@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:login_app/ROLES/CX/crud_user.dart';
+
 import 'package:login_app/ROLES/CX/projectsCX_USER.dart';
-import 'package:login_app/ROLES/custom.dart';
+
 import 'package:login_app/ROLES/custom_user.dart';
-import 'projectsCX.dart';
+
 import 'package:login_app/super%20usario/cards/cards.dart';
-import 'package:login_app/super%20usario/crud_user.dart';
-import 'package:login_app/super%20usario/custom_drawer.dart';
+
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/models/process.dart';
 import 'dart:async';
@@ -49,7 +48,7 @@ class _DashboardPageState extends State<DashboardCx_USERT> {
   List<ProjectCX> _projectsFiltered = [];
   bool _isLoadingProjects = true;
   String? _projectsErrorMessage;
-  final TextEditingController _searchController = TextEditingController();
+
 
   double completedPercent = 0.0;
   double inProgressPercent = 0.0;
@@ -284,100 +283,11 @@ class _DashboardPageState extends State<DashboardCx_USERT> {
     });
   }
 
-  void _filtrarProyectos(String query) {
-    setState(() {
-      _projectsFiltered = _projects
-          .where((p) => p.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
+ 
 
-  void _confirmDeleteProcess(BuildContext context, String processName) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: backgroundColor,
-          title: Text('Confirmar Eliminación', style: TextStyle(color: textColor)),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar el proceso "$processName"? Esta acción es irreversible y eliminará todos los datos asociados a este proceso (listas y tarjetas).',
-            style: TextStyle(color: darkGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancelar', style: TextStyle(color: secondaryColor)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _deleteProcess(processName);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: backgroundColor,
-              ),
-              child: const Text('Eliminar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  
 
-  Future<void> _deleteProcess(String processName) async {
-    setState(() {
-      _isLoadingProjects = true;
-    });
-    try {
-      final success = await _apiService.deleteProcess(processName);
-      if (success) {
-        await _fetchProjectsData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Proceso "$processName" eliminado exitosamente.', style: TextStyle(color: backgroundColor)),
-              backgroundColor: Colors.green[700],
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al eliminar el proceso "$processName".', style: TextStyle(color: backgroundColor)),
-              backgroundColor: primaryColor,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de conexión al eliminar el proceso: $e', style: TextStyle(color: backgroundColor)),
-            backgroundColor: primaryColor,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoadingProjects = false;
-      });
-    }
-  }
-
-  String _formatStartDate(String dateString) {
-    try {
-      final DateTime dateTime = DateTime.parse(dateString);
-      return '${dateTime.day.toString().padLeft(2, '0')}/'
-             '${dateTime.month.toString().padLeft(2, '0')}/'
-             '${dateTime.year}';
-    } catch (e) {
-      return 'Fecha Inválida';
-    }
-  }
-
+  
   String _formatEndDate(String dateString) {
     try {
       final DateTime dateTime = DateTime.parse(dateString).toLocal();
@@ -1061,8 +971,7 @@ class LineChartPainter extends CustomPainter {
     final double leftPadding = 60;
     final double rightPadding = 20;
     final double topPadding = 20;
-    final double bottomPadding = 60;
-    
+
     final int maxValue = [...started, ...closed].reduce((a, b) => max(a, b));
     final int yAxisSteps = maxValue > 0 ? (maxValue / 5).ceil() : 1;
     final double stepValue = maxValue > 0 ? (maxValue / yAxisSteps) : 1;

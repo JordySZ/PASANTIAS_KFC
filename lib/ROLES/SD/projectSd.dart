@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:login_app/ROLES/CX/dsi_screen.dart';
-import 'package:login_app/ROLES/Operaciones/cards2.dart';
+
 import 'package:login_app/services/api_service.dart';
-import 'package:login_app/super%20usario/cards/cards.dart';
-import 'package:login_app/super usario/home_page.dart';
 
 import 'sd.dart';
 class ProjectsSd extends StatefulWidget {
@@ -409,104 +407,6 @@ AppData.errorMessage = widget.errorMessage;
              '${dateTime.minute.toString().padLeft(2, '0')})';
     } catch (e) {
       return 'Fecha Inválida';
-    }
-  }
-
-  
-
-  Future<void> _deleteProcess(BuildContext context, String processName) async {
-    try {
-      final success = await widget.apiService.deleteProcess(processName); // Corregido aquí
-      if (success) {
-        widget.refreshData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Proceso "$processName" eliminado exitosamente.'),
-            backgroundColor: Colors.green[700],
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar el proceso "$processName".'),
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al eliminar el proceso: $e'),
-        ),
-      );
-    }
-  }
-
-  void _showEditProjectDialog(BuildContext context, Project6 project) {
-    final Color backgroundColor = Colors.white;
-    final Color textColor = Colors.black;
-    final Color darkGrey = Colors.grey[700]!;
-    final Color primaryColor = Colors.red[900]!;
-    final Color secondaryColor = Colors.grey[800]!;
-
-    final _formKey = GlobalKey<FormState>();
-    final _nameController = TextEditingController(text: project.name);
-    final _statusController = TextEditingController(text: project.estado);
-    
-    final _startDateController = TextEditingController(
-      text: project.startDate != 'N/A' ? _formatStartDate(project.startDate) : '',
-    );
-    final _endDateController = TextEditingController(
-      text: project.endDate != 'N/A' ? _formatStartDate(project.endDate) : '',
-    );
-
-    showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Editar Proyecto'),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(labelText: 'Nombre del Proceso'),
-                validator: (value) => value?.isEmpty ?? true ? 'Requerido' : null,
-              ),
-          
-      
-                ],
-             
-            ),
-          ),
-           
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-        
-        ],
-      );
-    },
-  );
-}
-
-  
-  String _parseToIsoDateString(String dateStr) {
-    try {
-      final parts = dateStr.split('/');
-      if (parts.length == 3) {
-        return DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        ).toIso8601String();
-      }
-      return DateTime.now().toIso8601String();
-    } catch (e) {
-      return DateTime.now().toIso8601String();
     }
   }
 }

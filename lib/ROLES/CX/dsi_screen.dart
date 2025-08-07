@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:login_app/ROLES/A.R/cronogrma/cronograma.dart';
-import 'package:login_app/ROLES/A.R/panel/panel_graficas.dart';
-import 'package:login_app/ROLES/A.R/tabla/home_screen.dart';
-import 'package:login_app/ROLES/CONT/cronogrma/cronograma.dart';
-import 'package:login_app/ROLES/CONT/panel/panel_graficas.dart';
-import 'package:login_app/ROLES/CONT/tabla/home_screen.dart';
-import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
+
+import 'package:login_app/ROLES/CX/cronogrma/cronograma.dart';
+import 'package:login_app/ROLES/CX/panel/panel_graficas.dart';
+import 'package:login_app/ROLES/CX/tabla/home_screen.dart';
+
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:login_app/models/process.dart';
 import 'package:login_app/services/api_service.dart';
-import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
-import 'package:login_app/super%20usario/panel/panel_graficas.dart';
-import 'package:login_app/super%20usario/tabla/home_screen.dart';
+
 
 import 'dart:async';
 
@@ -270,7 +266,7 @@ class _ARTScreenState extends State<DSIScreen> with WidgetsBindingObserver {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlannerScreenCont(
+                    builder: (context) => PlannerScreenCX(
                      processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -279,7 +275,7 @@ class _ARTScreenState extends State<DSIScreen> with WidgetsBindingObserver {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PanelTrelloCont(
+                    builder: (context) => PanelTrelloCX(
                      processName: _currentProcessCollectionName,
                     ),
                   ),
@@ -288,7 +284,7 @@ class _ARTScreenState extends State<DSIScreen> with WidgetsBindingObserver {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => KanbanTaskManagerCont(
+                    builder: (context) => KanbanTaskManagerCX(
                       processName: _currentProcessCollectionName,
                     ),
                   ),

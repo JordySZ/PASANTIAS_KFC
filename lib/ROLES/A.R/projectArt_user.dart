@@ -4,7 +4,6 @@ import 'package:login_app/ROLES/A.R/art_screen.dart';
 
 import 'package:login_app/services/api_service.dart';
 
-import 'ar.dart';
 class ProjectsAr extends StatefulWidget {
   final List<ProjectAr> projects;
   final ApiService apiService;

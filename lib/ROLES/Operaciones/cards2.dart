@@ -3,10 +3,9 @@ import 'package:login_app/ROLES/Operaciones/cronogrma/cronograma.dart';
 import 'package:login_app/ROLES/Operaciones/op.dart';
 import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
 import 'package:login_app/ROLES/Operaciones/tabla/home_screen.dart';
-import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
+
 import 'package:login_app/super%20usario/home_page.dart';
-import 'package:login_app/super%20usario/panel/panel_graficas.dart';
-import 'package:login_app/super%20usario/tabla/home_screen.dart';
+
 import 'package:intl/intl.dart';
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
@@ -15,8 +14,7 @@ import 'package:login_app/models/process.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:flutter/gestures.dart'; // Añade esta importación
-import 'package:excel/excel.dart';
-import 'dart:typed_data';
+
 import 'dart:io';
 import 'package:excel/excel.dart' as excel;  // Alias para Excel
 import 'package:flutter/material.dart' as material;

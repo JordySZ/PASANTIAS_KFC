@@ -5,15 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:login_app/ROLES/A.R/art_screen.dart';
 import 'package:login_app/ROLES/A.R/cronogrma/cronograma.dart';
 import 'package:login_app/ROLES/A.R/panel/panel_graficas.dart';
-import 'package:login_app/ROLES/CONT/Cont_screen.dart';
-import 'package:login_app/ROLES/CONT/cronogrma/cronograma.dart';
-import 'package:login_app/ROLES/CONT/panel/panel_graficas.dart';
-import 'package:login_app/ROLES/CX/cronogrma/cronograma.dart';
-import 'package:login_app/ROLES/CX/dsi_screen.dart';
-import 'package:login_app/ROLES/CX/panel/panel_graficas.dart';
-import 'package:login_app/super%20usario/cards/cards.dart';
-import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
-import 'package:login_app/super%20usario/panel/panel_graficas.dart';
+
 
 // Colores modificados según solicitud
 final Color primaryColor = const Color.fromARGB(255, 183, 28, 28); // Rojo del primer código

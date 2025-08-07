@@ -3,15 +3,12 @@ import 'package:intl/intl.dart';
 import 'package:login_app/ROLES/A.R/cronogrma/cronograma.dart';
 import 'package:login_app/ROLES/A.R/panel/panel_graficas.dart';
 import 'package:login_app/ROLES/A.R/tabla/home_screen.dart';
-import 'package:login_app/ROLES/Operaciones/panel/panel_graficas.dart';
+
 import 'package:login_app/models/tarjeta.dart';
 import 'package:login_app/models/lista_datos.dart';
 import 'package:login_app/models/process.dart';
 import 'package:login_app/services/api_service.dart';
-import 'package:login_app/super%20usario/cronogrma/cronograma.dart';
-import 'package:login_app/super%20usario/panel/panel_graficas.dart';
-import 'package:login_app/super%20usario/tabla/home_screen.dart';
-import 'projectArt.dart';
+
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 
