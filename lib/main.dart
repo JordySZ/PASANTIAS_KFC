@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:login_app/super%20usario/home_page.dart';
+import 'package:login_app/login/login.dart';
 
 void main() {
   runApp(MyApp());
@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'App Modular',
       debugShowCheckedModeBanner: false,
-      home: DashboardPage(), //LoginScreen DashboardPage DashboardPage22
+      home: LoginScreen1(), //LoginScreen DashboardPage DashboardPage22
     );
   }
 }

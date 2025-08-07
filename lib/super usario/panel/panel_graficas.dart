@@ -19,7 +19,6 @@ class PanelTrello extends StatefulWidget {
 }
 
 class _PanelTrelloState extends State<PanelTrello> {
-  
   List<GraficaConfiguracion> graficas = [];
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
@@ -34,10 +33,6 @@ class _PanelTrelloState extends State<PanelTrello> {
   List<ListaDatos> listas = [];
   List<Tarjeta> tarjetas = [];
   String? _currentProcessCollectionName;
-bool _needsRefresh = true;
-Timer? _refreshTimer;
-final Duration _refreshInterval = const Duration(seconds: 5);
-bool _autoRefreshEnabled = true;
   // Configuraciones visuales
   final _filtroIconos = const {
     "lista": Icons.list_alt,
@@ -68,34 +63,36 @@ bool _autoRefreshEnabled = true;
   };
 
   @override
-void initState() {
-  super.initState();
-  _currentProcessCollectionName = widget.processName;
-  if (_currentProcessCollectionName != null) {
-    _loadInitialData();
+  void initState() {
+    super.initState();
+    _currentProcessCollectionName = widget.processName;
+    if (_currentProcessCollectionName != null) {
+      _loadInitialData();
+    }
+
+    Timer.periodic(const Duration(minutes: 5), (_) => _clearExpiredCache());
+
+    // Timer de refresco sin animación
+    Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_currentProcessCollectionName != null && mounted) {
+        _refreshData();
+      }
+    });
   }
 
-  Timer.periodic(const Duration(minutes: 5), (_) => _clearExpiredCache());
-  
-  // Timer de refresco sin animación
-  Timer.periodic(const Duration(seconds: 10), (_) {
-    if (_currentProcessCollectionName != null && mounted) {
-      _refreshData();
-    }
-  });
-}
-Future<void> _refreshData() async {
-  try {
-    await _loadListsAndCards(_currentProcessCollectionName!);
-    await _loadGraficasFromBackend();
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al refrescar datos: ${e.toString()}')),
-      );
+  Future<void> _refreshData() async {
+    try {
+      await _loadListsAndCards(_currentProcessCollectionName!);
+      await _loadGraficasFromBackend();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al refrescar datos: ${e.toString()}')),
+        );
+      }
     }
   }
-}
+
   void _clearExpiredCache() {
     if (_lastDataUpdate == null ||
         DateTime.now().difference(_lastDataUpdate!) >
@@ -270,46 +267,59 @@ Future<void> _refreshData() async {
         'Sin fecha',
       ];
 
+      // Inicializar todas las categorías con 0
       for (var categoria in categoriasVencimiento) {
         data[categoria] = 0;
       }
 
       for (var tarjeta in tarjetas) {
-        final tiempoInfo = tarjeta.tiempoRestanteCalculado;
-        final textoEstado = tiempoInfo['text']?.toString() ?? 'Desconocido';
-
-        if (textoEstado.contains('Completado (con') &&
-            textoEstado.contains('restantes')) {
-          data['Completado (a tiempo)'] =
-              (data['Completado (a tiempo)'] ?? 0) + 1;
-        } else if (textoEstado.contains('Completado (con') &&
-            textoEstado.contains('retraso')) {
-          data['Completado (con retraso)'] =
-              (data['Completado (con retraso)'] ?? 0) + 1;
-        } else if (textoEstado == 'Completado (sin fecha de completado)') {
-          data['Completado (sin fecha)'] =
-              (data['Completado (sin fecha)'] ?? 0) + 1;
-        } else if (textoEstado.contains('Vencido')) {
-          data['Vencido'] = (data['Vencido'] ?? 0) + 1;
-        } else if (textoEstado.contains('Faltan') &&
-            tarjeta.fechaVencimiento != null) {
-          final diff = tarjeta.fechaVencimiento!.difference(hoy);
-          if (diff.inDays <= 2) {
-            data['Por vencer (próximos 2 días)'] =
-                (data['Por vencer (próximos 2 días)'] ?? 0) + 1;
+        if (tarjeta.estado == EstadoTarjeta.hecho) {
+          // Tarjeta completada
+          if (tarjeta.fechaCompletado == null) {
+            data['Completado (sin fecha)'] =
+                (data['Completado (sin fecha)'] ?? 0) + 1;
+          } else if (tarjeta.fechaVencimiento == null) {
+            data['Completado (sin fecha)'] =
+                (data['Completado (sin fecha)'] ?? 0) + 1;
           } else {
-            data['Por vencer (más de 2 días)'] =
-                (data['Por vencer (más de 2 días)'] ?? 0) + 1;
+            // Comparar fecha de completado con fecha de vencimiento
+            if (tarjeta.fechaCompletado!.isBefore(tarjeta.fechaVencimiento!) ||
+                tarjeta.fechaCompletado!.isAtSameMomentAs(
+                  tarjeta.fechaVencimiento!,
+                )) {
+              data['Completado (a tiempo)'] =
+                  (data['Completado (a tiempo)'] ?? 0) + 1;
+            } else {
+              data['Completado (con retraso)'] =
+                  (data['Completado (con retraso)'] ?? 0) + 1;
+            }
           }
-        } else if (tarjeta.fechaVencimiento == null) {
-          data['Sin fecha'] = (data['Sin fecha'] ?? 0) + 1;
+        } else {
+          // Tarjeta no completada
+          if (tarjeta.fechaVencimiento == null) {
+            data['Sin fecha'] = (data['Sin fecha'] ?? 0) + 1;
+          } else if (tarjeta.fechaVencimiento!.isBefore(hoy)) {
+            data['Vencido'] = (data['Vencido'] ?? 0) + 1;
+          } else {
+            // Calcular días restantes (incluyendo hoy)
+            final diff = tarjeta.fechaVencimiento!.difference(hoy).inDays + 1;
+            if (diff <= 2) {
+              data['Por vencer (próximos 2 días)'] =
+                  (data['Por vencer (próximos 2 días)'] ?? 0) + 1;
+            } else {
+              data['Por vencer (más de 2 días)'] =
+                  (data['Por vencer (más de 2 días)'] ?? 0) + 1;
+            }
+          }
         }
       }
 
+      // Eliminar categorías con 0 valores
       data.removeWhere(
         (key, value) => value == 0 || !categoriasVencimiento.contains(key),
       );
     } else {
+      // Resto de la lógica para otros filtros (lista, miembro, estado)
       switch (filtro) {
         case "lista":
           for (var lista in listas) {
