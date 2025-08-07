@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'dart:io';
-
+import 'dart:async';
 import 'dart:html' as html; // Solo para web
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -22,16 +22,25 @@ class _SolicitudesAdminScreenState extends State<SolicitudesAdminScreen> {
   bool _isLoading = true;
   final String _baseUrl = 'http://localhost:3000';
   final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarSolicitudes();
-    _searchController.addListener(_filtrarSolicitudes);
-  }
+Timer? _refreshTimer;
+ @override
+void initState() {
+  super.initState();
+  _cargarSolicitudes(); // Primera carga con loading
+  
+  _searchController.addListener(_filtrarSolicitudes);
+  
+  // Timer para refrescar sin mostrar loading
+  _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    if (mounted) {
+      _cargarSolicitudes(showLoading: false); // Refresco automático sin loading
+    }
+  });
+}
 
   @override
   void dispose() {
+     _refreshTimer?.cancel(); // Cancelar el timer
     _searchController.dispose();
     super.dispose();
   }
@@ -142,25 +151,30 @@ class _SolicitudesAdminScreenState extends State<SolicitudesAdminScreen> {
     }
   }
 
-  Future<void> _cargarSolicitudes() async {
+Future<void> _cargarSolicitudes({bool showLoading = true}) async {
+  if (showLoading) {
     setState(() => _isLoading = true);
-    try {
-      final response = await http.get(Uri.parse('$_baseUrl/solicitudes'));
-      
-      if (response.statusCode == 200) {
-        setState(() {
-          _solicitudes = jsonDecode(response.body);
-          _solicitudesFiltradas = List.from(_solicitudes);
-        });
-      } else {
-        _mostrarError('Error al cargar solicitudes: ${response.statusCode}');
-      }
-    } catch (e) {
-      _mostrarError('Error de conexión: ${e.toString()}');
-    } finally {
+  }
+  
+  try {
+    final response = await http.get(Uri.parse('$_baseUrl/solicitudes'));
+    
+    if (response.statusCode == 200) {
+      setState(() {
+        _solicitudes = jsonDecode(response.body);
+        _solicitudesFiltradas = List.from(_solicitudes);
+      });
+    } else {
+      _mostrarError('Error al cargar solicitudes: ${response.statusCode}');
+    }
+  } catch (e) {
+    _mostrarError('Error de conexión: ${e.toString()}');
+  } finally {
+    if (showLoading) {
       setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _actualizarEstado(String id, String nuevoEstado) async {
     try {

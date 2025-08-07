@@ -1,20 +1,18 @@
-
-import 'dart:async'; // Añade esta importación al principio del archivo
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:login_app/services/api_service.dart';
 import 'package:login_app/super%20usario/cards/cards.dart';
 import 'package:login_app/super usario/home_page.dart';
 import 'package:login_app/models/process.dart';
+
 class ProjectsTable extends StatefulWidget {
   final List<Project> projects;
   final ApiService apiService;
-  
   final VoidCallback refreshData;
   final ValueNotifier<String?> processStatusNotifier;
   final bool isLoading;
   final String? errorMessage;
-  
 
   const ProjectsTable({
     super.key,
@@ -29,8 +27,8 @@ class ProjectsTable extends StatefulWidget {
   @override
   State<ProjectsTable> createState() => _ProjectsTableState();
 }
+
 class AppData {
-  // Campos estáticos para almacenar los datos
   static List<Project>? projects;
   static ApiService? apiService;
   static VoidCallback? refreshData;
@@ -38,7 +36,6 @@ class AppData {
   static bool isLoading = false;
   static String? errorMessage;
 
-  // Método para limpiar los datos (opcional)
   static void clear() {
     projects = null;
     apiService = null;
@@ -48,18 +45,48 @@ class AppData {
     errorMessage = null;
   }
 }
+
 class _ProjectsTableState extends State<ProjectsTable> {
   final TextEditingController _searchController = TextEditingController();
   List<Project> _projectsFiltered = [];
   Timer? _refreshTimer;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
-    _updateFilteredProjects(widget.projects); // Inicializar con los proyectos actuales
+    _updateFilteredProjects(widget.projects);
     _searchController.addListener(_filtrarProyectos);
+    _startAutoRefresh();
+  }
 
+  // Iniciar el temporizador de auto-refresco
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel(); // Cancelar cualquier temporizador existente
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!_isRefreshing) {
+        _refreshData();
+      }
+    });
+  }
 
+  // Método para refrescar los datos
+  Future<void> _refreshData() async {
+    if (_isRefreshing) return;
+    
+    setState(() {
+      _isRefreshing = true;
+    });
+    
+    try {
+      widget.refreshData();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
   }
 
   // Método para actualizar la lista filtrada
@@ -77,19 +104,19 @@ class _ProjectsTableState extends State<ProjectsTable> {
     
     if (widget.projects != oldWidget.projects) {
       print("Proyectos actualizados, filtrando...");
-      _updateFilteredProjects(widget.projects); // Usar el nuevo método
+      _updateFilteredProjects(widget.projects);
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _refreshTimer?.cancel();
+    _refreshTimer?.cancel(); // Asegurarse de cancelar el temporizador
     super.dispose();
   }
 
   void _filtrarProyectos() {
-    _updateFilteredProjects(widget.projects); // Usar el mismo método para filtrar
+    _updateFilteredProjects(widget.projects);
   }
 
   @override
@@ -102,26 +129,36 @@ class _ProjectsTableState extends State<ProjectsTable> {
     final Color lightGrey = Colors.grey[200]!;
 
     return Scaffold(
-    appBar: AppBar(
-  title: const Text('Tabla de Proyectos'),
-  backgroundColor: primaryColor,
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back),
-    onPressed: () {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => DashboardPage()),
-        (Route<dynamic> route) => false,
-      );
-    },
+      appBar: AppBar(
+        title: const Text('Tabla de Proyectos'),
+        backgroundColor: primaryColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => DashboardPage()),
+              (Route<dynamic> route) => false,
+            );
+          },
+        ),
+     actions: [
+  IconButton(
+    icon: _isRefreshing 
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            )
+          )
+        : const Icon(Icons.refresh),
+    onPressed: _refreshData,
+    tooltip: 'Refrescar datos',
   ),
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.refresh),
-      onPressed: widget.refreshData,
-    ),
-  ],
-),
+],
+      ),
       body: widget.isLoading
           ? Center(child: CircularProgressIndicator(color: primaryColor))
           : widget.errorMessage != null
@@ -133,7 +170,6 @@ class _ProjectsTableState extends State<ProjectsTable> {
             )
           : Column(
               children: [
-     
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Card(
@@ -173,10 +209,8 @@ class _ProjectsTableState extends State<ProjectsTable> {
                     ),
                   ),
                 ),
-               
                 
-                // Título y tabla
-                 Expanded(
+                Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
@@ -336,19 +370,18 @@ class _ProjectsTableState extends State<ProjectsTable> {
                                         label: 'Detalles',
                                         color: darkGrey,
                                         onPressed: () {
-AppData.projects = widget.projects;
-AppData.apiService = widget.apiService;
-AppData.refreshData = widget.refreshData;
-AppData.processStatusNotifier = widget.processStatusNotifier;
-AppData.isLoading = widget.isLoading;
-AppData.errorMessage = widget.errorMessage;
+                                          AppData.projects = widget.projects;
+                                          AppData.apiService = widget.apiService;
+                                          AppData.refreshData = widget.refreshData;
+                                          AppData.processStatusNotifier = widget.processStatusNotifier;
+                                          AppData.isLoading = widget.isLoading;
+                                          AppData.errorMessage = widget.errorMessage;
 
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                               builder: (context) => TableroScreen(
                                                 processName: project.name,
-                                                
                                               ),
                                             ),
                                           );
@@ -424,7 +457,6 @@ AppData.errorMessage = widget.errorMessage;
     }
   }
 
-  // Métodos de ayuda (mantener los mismos que en tu código original)
   String _traducirEstado(String estado) {
     switch (estado.toLowerCase()) {
       case 'echo': return 'Completado';
@@ -496,45 +528,43 @@ AppData.errorMessage = widget.errorMessage;
     );
   }
 
-Future<void> _deleteProcess(BuildContext context, String processName) async {
-  try {
-    final success = await widget.apiService.deleteProcess(processName);
-    if (success) {
-      // Actualizar el estado local primero
-      setState(() {
-        _projectsFiltered.removeWhere((p) => p.name == processName);
-      });
-      
-      // Luego llamar al refreshData para sincronizar con el servidor
-      widget.refreshData();
-      
+  Future<void> _deleteProcess(BuildContext context, String processName) async {
+    try {
+      final success = await widget.apiService.deleteProcess(processName);
+      if (success) {
+        setState(() {
+          _projectsFiltered.removeWhere((p) => p.name == processName);
+        });
+        
+        widget.refreshData();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Proceso "$processName" eliminado exitosamente.'),
+              backgroundColor: Colors.green[700],
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar el proceso "$processName".'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Proceso "$processName" eliminado exitosamente.'),
-            backgroundColor: Colors.green[700],
+            content: Text('Error de conexión al eliminar el proceso: $e'),
           ),
         );
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar el proceso "$processName".'),
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión al eliminar el proceso: $e'),
-        ),
-      );
     }
   }
-}
 
   void _showEditProjectDialog(BuildContext context, Project project) {
     final Color backgroundColor = Colors.white;
@@ -555,114 +585,108 @@ Future<void> _deleteProcess(BuildContext context, String processName) async {
     );
 
     showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Editar Proyecto'),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(labelText: 'Nombre del Proceso'),
-                validator: (value) => value?.isEmpty ?? true ? 'Requerido' : null,
-              ),
-          
-      
-                ],
-             
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Proyecto'),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(labelText: 'Nombre del Proceso'),
+                  validator: (value) => value?.isEmpty ?? true ? 'Requerido' : null,
+                ),
+              ],
             ),
           ),
-           
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                await _updateProject(
-                  context,
-                  originalName: project.name,
-                  updatedName: _nameController.text,
-                  newStatus: _statusController.text,
-                  newStartDate: project.startDate,
-                  newEndDate: project.endDate,
-                );
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: Text('Guardar'),
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  await _updateProject(
+                    context,
+                    originalName: project.name,
+                    updatedName: _nameController.text,
+                    newStatus: _statusController.text,
+                    newStartDate: project.startDate,
+                    newEndDate: project.endDate,
+                  );
+                  if (mounted) Navigator.pop(context);
+                }
+              },
+              child: Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _updateProject(
-  BuildContext context, {
-  required String originalName,
-  required String updatedName,
-  required String newStatus,
-  required String newStartDate,
-  required String newEndDate,
-}) async {
-  try {
-    final updatedProcess = Process(
-      nombre_proceso: updatedName,
-      startDate: DateTime.parse(newStartDate),
-      endDate: DateTime.parse(newEndDate),
-      estado: newStatus,
-      progress: 0.0,
-    );
+    BuildContext context, {
+    required String originalName,
+    required String updatedName,
+    required String newStatus,
+    required String newStartDate,
+    required String newEndDate,
+  }) async {
+    try {
+      final updatedProcess = Process(
+        nombre_proceso: updatedName,
+        startDate: DateTime.parse(newStartDate),
+        endDate: DateTime.parse(newEndDate),
+        estado: newStatus,
+        progress: 0.0,
+      );
 
-    final updated = await widget.apiService.updateProcess(
-      originalName,
-      updatedProcess,
-    );
+      final updated = await widget.apiService.updateProcess(
+        originalName,
+        updatedProcess,
+      );
 
-    if (updated != null) {
-      // Paso 1: Actualizar la lista local inmediatamente
-      setState(() {
-        final index = _projectsFiltered.indexWhere((p) => p.name == originalName);
-        if (index != -1) {
-          _projectsFiltered[index] = Project(
-            name: updatedName,
-            startDate: newStartDate,
-            endDate: newEndDate,
-            estado: newStatus,
-            progress: _projectsFiltered[index].progress,
+      if (updated != null) {
+        setState(() {
+          final index = _projectsFiltered.indexWhere((p) => p.name == originalName);
+          if (index != -1) {
+            _projectsFiltered[index] = Project(
+              name: updatedName,
+              startDate: newStartDate,
+              endDate: newEndDate,
+              estado: newStatus,
+              progress: _projectsFiltered[index].progress,
+            );
+          }
+        });
+
+        widget.refreshData();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Proceso actualizado correctamente'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
-      });
-
-      // Paso 2: Forzar refresco completo de datos
-      widget.refreshData();
-
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Proceso actualizado correctamente'),
-            backgroundColor: Colors.green,
+            content: Text('Error al actualizar: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al actualizar: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
-}
 
   String _parseToIsoDateString(String dateStr) {
     try {

@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'App Modular',
       debugShowCheckedModeBanner: false,
-      home: DashboardAr(), //LoginScreen DashboardPage DashboardPage22
+      home: DashboardPage(), //LoginScreen DashboardPage DashboardPage22
     );
   }
 }
