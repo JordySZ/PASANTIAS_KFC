@@ -69,8 +69,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _fetchProjectsData();
     });
     
-    processStatusNotifier.addListener(_handleProcessStatusChange);
-    _startCompletionChecker();
+  
   }
 
   @override

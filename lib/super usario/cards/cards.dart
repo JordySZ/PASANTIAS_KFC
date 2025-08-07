@@ -1733,7 +1733,7 @@ Widget build(BuildContext context) {
   backgroundColor: const Color.fromARGB(255, 255, 255, 255),
   appBar: AppBar(
     leading: IconButton(
-      icon: const Icon(Icons.arrow_back, color: Colors.white),
+      icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 255, 255, 255)),
       onPressed: () {
         // Verificar si hay proyectos antes de navegar
         if (_projectsFiltered.isNotEmpty) {

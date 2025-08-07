@@ -243,24 +243,29 @@ class _ARTScreenState extends State<DSIScreen> with WidgetsBindingObserver {
     final filteredCards = _filterdsiCards();
     
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Tareas dsi - ${widget.processName ?? ''}',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.black,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onSelected: (String value) {
-              if (_currentProcessCollectionName == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Por favor, crea o selecciona un proceso antes de navegar.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
+  appBar: AppBar(
+    title: Text(
+      'Tareas dsi - ${widget.processName ?? ''}',
+      style: TextStyle(color: Colors.white),
+    ),
+    backgroundColor: Colors.black,
+    leading: IconButton(
+      icon: Icon(Icons.arrow_back, color: Colors.white), // Flecha blanca
+      onPressed: () => Navigator.of(context).pop(),
+    ),
+    actions: [
+      PopupMenuButton<String>(
+        icon: const Icon(Icons.menu, color: Colors.white),
+        onSelected: (String value) {
+          if (_currentProcessCollectionName == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Por favor, crea o selecciona un proceso antes de navegar.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+
               }
               if (value == 'cronograma') {
                 Navigator.pushReplacement(

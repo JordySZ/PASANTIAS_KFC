@@ -249,6 +249,10 @@ class _ARTScreenState extends State<CONTScreen> with WidgetsBindingObserver {
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.black,
+         leading: IconButton(
+      icon: Icon(Icons.arrow_back, color: Colors.white), // Flecha blanca
+      onPressed: () => Navigator.of(context).pop(),
+    ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.white),

@@ -245,9 +245,13 @@ Widget build(BuildContext context) {
         style: TextStyle(color: Colors.white),
       ),
       backgroundColor: Colors.black,
+       leading: IconButton(
+      icon: Icon(Icons.arrow_back, color: Colors.white), // Flecha blanca
+      onPressed: () => Navigator.of(context).pop(),
+    ),
       actions: [
         PopupMenuButton<String>(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.menu, color: Color.fromARGB(255, 255, 255, 255)),
           onSelected: (String value) {
             if (_currentProcessCollectionName == null) {
               ScaffoldMessenger.of(context).showSnackBar(
